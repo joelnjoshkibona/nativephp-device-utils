@@ -1,0 +1,21 @@
+{
+    "name": "blutrixx/device-utils",
+    "description": "Native device utilities for NativePHP Mobile — system insets, file picking, and app storage access",
+    "type": "nativephp-plugin",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Blutrixx\\DeviceUtils\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Blutrixx\\DeviceUtils\\DeviceUtilsServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "php": "^8.1"
+    }
+}

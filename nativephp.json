@@ -1,0 +1,61 @@
+{
+    "namespace": "DeviceUtils",
+    "bridge_functions": [
+        {
+            "name": "DeviceUtils.GetInsets",
+            "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.GetInsets",
+            "android_params": ["activity"],
+            "description": "Get device system bar insets (status bar, navigation bar heights in dp)"
+        },
+        {
+            "name": "DeviceUtils.PickFile",
+            "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.PickFile",
+            "android_params": ["activity"],
+            "description": "Launch the system file picker via SAF; fires FileSelected or FilePickCancelled event asynchronously"
+        },
+        {
+            "name": "DeviceUtils.CopyToStorage",
+            "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.CopyToStorage",
+            "android_params": ["activity"],
+            "description": "Copy a SAF content URI into app-private internal storage; returns destination path and size"
+        },
+        {
+            "name": "DeviceUtils.RequestPermissions",
+            "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.RequestPermissions",
+            "android_params": ["activity"],
+            "description": "Request one or more dangerous Android runtime permissions via the system dialog; fires PermissionsResult event asynchronously"
+        },
+        {
+            "name": "SmartCamera.Open",
+            "android": "com.blutrixx.device.utils.SmartCameraFunctions.Open",
+            "android_params": ["activity"],
+            "description": "Open the camera overlay. mode='scan' continuously detects barcodes/QR codes and fires ScanResult; mode='photo' shows a shutter button and fires PhotoCaptured."
+        },
+        {
+            "name": "SmartCamera.Close",
+            "android": "com.blutrixx.device.utils.SmartCameraFunctions.Close",
+            "android_params": ["activity"],
+            "description": "Dismiss the camera overlay if it is currently open."
+        }
+    ],
+    "events": [
+        "Blutrixx\\DeviceUtils\\Events\\FileSelected",
+        "Blutrixx\\DeviceUtils\\Events\\FilePickCancelled",
+        "Blutrixx\\DeviceUtils\\Events\\PermissionsResult",
+        "Blutrixx\\DeviceUtils\\Events\\PhotoCaptured",
+        "Blutrixx\\DeviceUtils\\Events\\CaptureCancelled"
+    ],
+    "android": {
+        "permissions": [
+            "android.permission.CAMERA"
+        ],
+        "features": [
+            {"name": "android.hardware.camera", "required": false}
+        ],
+        "dependencies": {
+            "implementation": [
+                "com.google.mlkit:barcode-scanning:17.2.0"
+            ]
+        }
+    }
+}

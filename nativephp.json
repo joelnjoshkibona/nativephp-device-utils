@@ -43,7 +43,8 @@
         "Blutrixx\\DeviceUtils\\Events\\FilePickCancelled",
         "Blutrixx\\DeviceUtils\\Events\\PermissionsResult",
         "Blutrixx\\DeviceUtils\\Events\\PhotoCaptured",
-        "Blutrixx\\DeviceUtils\\Events\\CaptureCancelled"
+        "Blutrixx\\DeviceUtils\\Events\\CaptureCancelled",
+        "Blutrixx\\DeviceUtils\\Events\\ScanResult"
     ],
     "android": {
         "permissions": [

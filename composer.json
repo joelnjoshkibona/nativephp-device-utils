@@ -1,5 +1,6 @@
 {
-    "name": "blutrixx/device-utils",
+    "name": "blutrixx/nativephp-device-utils",
+    "version": "1.0.0",
     "description": "Native device utilities for NativePHP Mobile — system insets, file picking, and app storage access",
     "type": "nativephp-plugin",
     "license": "MIT",

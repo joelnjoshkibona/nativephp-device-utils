@@ -5,8 +5,9 @@ namespace Blutrixx\DeviceUtils\Facades;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @method static array open(string $mode = 'scan', string $quality = 'high')
+ * @method static array open(string $mode = 'scan', string $quality = 'high', bool $multiple = false, bool $autoClose = true)
  * @method static array close()
+ * @method static array warm()
  *
  * @see \Blutrixx\DeviceUtils\SmartCamera
  */

@@ -1,6 +1,7 @@
 package com.blutrixx.device.utils
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -11,6 +12,7 @@ import android.view.*
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.camera.camera2.Camera2Config
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -29,9 +31,18 @@ import java.util.concurrent.Executors
 /**
  * Unified camera fragment with three modes:
  *
- *  mode = "scan"    — Continuous ML Kit barcode/QR detection.
- *                      No shutter button. Fires ScanResult as soon as a code is read,
- *                      then dismisses automatically.
+ *  mode = "scan"    — ML Kit barcode/QR detection. No shutter button.
+ *                      Default (multiple=false, autoClose=true): fires ScanResult
+ *                      as soon as a code is read, then dismisses automatically.
+ *                      multiple=false, autoClose=false: stops after the first
+ *                      decode but shows a "Found: <value>" confirm/retry UI
+ *                      instead of closing — fires ScanResult only once the user
+ *                      taps "Use this code" (or keeps scanning via "Scan again").
+ *                      multiple=true: keeps scanning indefinitely, accumulating
+ *                      every distinct code found (deduped by value) in a live
+ *                      on-screen list, until the user taps "Done" — fires
+ *                      ScanResults (plural, an array) — autoClose is ignored,
+ *                      manual close is the only option in this mode.
  *
  *  mode = "photo"   — Manual capture with a shutter button.
  *                      Fires PhotoCaptured { path, base64, width, height, size }.
@@ -59,13 +70,104 @@ class SmartCameraFragment : Fragment() {
     companion object {
         private const val TAG = "SmartCameraFragment"
         private const val CAMERA_PERMISSION = Manifest.permission.CAMERA
-        private const val ARG_MODE    = "mode"
-        private const val ARG_QUALITY = "quality"
+        private const val ARG_MODE       = "mode"
+        private const val ARG_QUALITY    = "quality"
+        private const val ARG_MULTIPLE   = "multiple"
+        private const val ARG_AUTO_CLOSE = "autoClose"
 
-        fun newInstance(mode: String, quality: String) = SmartCameraFragment().apply {
+        /**
+         * @param multiple  scan mode only. false (default): stop after the first
+         *                  decode. true: keep scanning, accumulate every distinct
+         *                  code found (deduped by value) until the user taps Done —
+         *                  autoClose is ignored/forced-false in this mode, since
+         *                  manual close is the only option for a multi-scan session.
+         * @param autoClose scan mode, single (multiple=false) only. true (default):
+         *                  resolve and dismiss immediately on the first decode
+         *                  (today's original behavior). false: stop scanning but
+         *                  show a "Found: <value>" confirm/retry UI instead of
+         *                  closing — the user taps "Use this code" to accept or
+         *                  "Scan again" to keep looking.
+         */
+        fun newInstance(mode: String, quality: String, multiple: Boolean = false, autoClose: Boolean = true) = SmartCameraFragment().apply {
             arguments = Bundle().apply {
                 putString(ARG_MODE, mode)
                 putString(ARG_QUALITY, quality)
+                putBoolean(ARG_MULTIPLE, multiple)
+                putBoolean(ARG_AUTO_CLOSE, autoClose)
+            }
+        }
+
+        @Volatile private var cameraXConfigured = false
+
+        /**
+         * The only camera(s) CameraX is allowed to consider, app-wide, for
+         * this app's entire process lifetime — see ensureCameraXConfigured()
+         * below for why this can only be set ONCE and can't vary per capture
+         * session. Explicit single source of truth: bindToLifecycle() in
+         * startCamera() below always passes this exact value too, so there's
+         * one place to change if this app's camera needs ever change.
+         *
+         * Defaults to back — every current use (QR/barcode scan, receipt
+         * photo) is inherently a back-camera activity, and nothing in this
+         * plugin has ever requested the front camera. If a genuine
+         * front-camera need appears later (e.g. a worker selfie/ID-check
+         * flow), this is the one place to change — but note that switching
+         * to CameraSelector.DEFAULT_FRONT_CAMERA or a selector that allows
+         * both directly trades back the ~5.7s front-camera-probe retry cost
+         * this whole mechanism exists to eliminate on devices that don't
+         * report a front camera correctly (see the failure mode documented
+         * below). There is no way to make this a genuine per-call runtime
+         * choice without paying that cost on every open, since
+         * ProcessCameraProvider.configureInstance() is a one-shot,
+         * process-lifetime setting, not a per-session one.
+         */
+        private val AVAILABLE_CAMERAS: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+        /**
+         * Configure CameraX to only ever probe for AVAILABLE_CAMERAS, exactly
+         * once, before the very first ProcessCameraProvider.getInstance()
+         * call anywhere in the process — configureInstance() throws if
+         * called after CameraX has already started initializing, so this
+         * must win the race against both call sites below.
+         *
+         * Without this, CameraX's default CameraValidator ALSO probes for a
+         * front camera on every cold start — this app never requests one
+         * (see AVAILABLE_CAMERAS above) but CameraX doesn't know that ahead
+         * of time. On at least one real test device that front-camera probe
+         * failed outright (device reports zero LENS_FACING_FRONT cameras)
+         * and CameraX retried ~11 times over ~5.7 seconds before giving up
+         * and proceeding anyway — confirmed via logcat
+         * ("CameraIdListIncorrectException: Expected camera missing from
+         * device" / "Retry init" / "The device might underreport the amount
+         * of the cameras") — a real, measured, avoidable cost paid on every
+         * single camera open, not generic CameraX cold-start overhead.
+         *
+         * setAvailableCamerasLimiter tells CameraX up front which camera(s)
+         * actually matter, so it never attempts that front-camera probe.
+         *
+         * Called from both SmartCameraFunctions.Warm (the normal path, well
+         * before the user taps scan/photo) and here in startCamera() (safety
+         * net in case a camera/scan is ever opened without a prior warm
+         * call). Thread-safe via double-checked locking; configureInstance()
+         * itself is a cheap synchronous call — it just records config for
+         * the next getInstance(), no camera I/O happens here.
+         */
+        fun ensureCameraXConfigured(context: Context) {
+            if (cameraXConfigured) return
+            synchronized(this) {
+                if (cameraXConfigured) return
+                cameraXConfigured = true
+                try {
+                    ProcessCameraProvider.configureInstance(
+                        CameraXConfig.Builder.fromConfig(Camera2Config.defaultConfig())
+                            .setAvailableCamerasLimiter(AVAILABLE_CAMERAS)
+                            .build()
+                    )
+                } catch (e: Exception) {
+                    // Most likely cause: getInstance() already ran elsewhere before this
+                    // call won the race — non-fatal, CameraX just uses its own defaults.
+                    Log.w(TAG, "ensureCameraXConfigured: failed (CameraX may already be initializing)", e)
+                }
             }
         }
     }
@@ -73,7 +175,25 @@ class SmartCameraFragment : Fragment() {
     private lateinit var previewView: PreviewView
     private lateinit var cameraExecutor: ExecutorService
     private var imageCapture: ImageCapture? = null
-    private var scanDone = false
+
+    // ─── Scan-mode state ───────────────────────────────────────────────────
+    // Single-result path (multiple=false): locks after the first decode so
+    // later frames are ignored, regardless of autoClose.
+    private var singleResultLocked = false
+    private var pendingSingleResult: Pair<String, String>? = null
+
+    // Multi-result path (multiple=true): every distinct value found so far,
+    // insertion-ordered, deduped by value — re-scanning the same code is a
+    // no-op, not a second entry.
+    private val foundCodes = LinkedHashMap<String, String>()
+
+    // Scan-mode views that need updating after the initial layout — null in
+    // the modes/branches that don't use them.
+    private var scanHintView: TextView? = null
+    private var confirmTextView: TextView? = null
+    private var confirmButtonsRow: android.widget.LinearLayout? = null
+    private var foundCodesListContainer: android.widget.LinearLayout? = null
+    private var doneButton: android.widget.Button? = null
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -97,8 +217,10 @@ class SmartCameraFragment : Fragment() {
         }
     }
 
-    private val mode    get() = arguments?.getString(ARG_MODE,    "scan")  ?: "scan"
-    private val quality get() = arguments?.getString(ARG_QUALITY, "high")  ?: "high"
+    private val mode       get() = arguments?.getString(ARG_MODE,    "scan")  ?: "scan"
+    private val quality    get() = arguments?.getString(ARG_QUALITY, "high")  ?: "high"
+    private val multiple   get() = arguments?.getBoolean(ARG_MULTIPLE, false) ?: false
+    private val autoClose  get() = arguments?.getBoolean(ARG_AUTO_CLOSE, true) ?: true
 
     // ─── View ────────────────────────────────────────────────────────────────
 
@@ -133,20 +255,118 @@ class SmartCameraFragment : Fragment() {
         root.addView(closeBtn)
 
         when (mode) {
-            "scan" -> {
-                // Scan mode: hint label only — no shutter
-                val hint = TextView(requireContext()).apply {
-                    text = "Point camera at QR code or barcode"
-                    setTextColor(0xFFFFFFFF.toInt())
-                    textSize = 14f
-                    gravity = Gravity.CENTER
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.WRAP_CONTENT,
-                        Gravity.BOTTOM
-                    ).apply { bottomMargin = 140 }
+            "scan" -> when {
+                multiple -> {
+                    // Multi-scan: hint + a live scrollable list of distinct codes
+                    // found so far + a "Done (N)" button (disabled until at least
+                    // one code is found). No auto-close — see newInstance() docs.
+                    val hint = TextView(requireContext()).apply {
+                        text = "Point camera at codes — tap Done when finished"
+                        setTextColor(0xFFFFFFFF.toInt())
+                        textSize = 14f
+                        gravity = Gravity.CENTER
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            Gravity.TOP
+                        ).apply { topMargin = 220 }
+                    }
+                    root.addView(hint)
+
+                    val listContainer = android.widget.LinearLayout(requireContext()).apply {
+                        orientation = android.widget.LinearLayout.VERTICAL
+                    }
+                    foundCodesListContainer = listContainer
+                    val scrollView = android.widget.ScrollView(requireContext()).apply {
+                        addView(listContainer)
+                        setBackgroundColor(0x99000000.toInt())
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT, 400, Gravity.BOTTOM
+                        ).apply { bottomMargin = 200 }
+                    }
+                    root.addView(scrollView)
+
+                    val doneBtn = android.widget.Button(requireContext()).apply {
+                        text = "Done (0)"
+                        isEnabled = false
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                        ).apply { bottomMargin = 80 }
+                        setOnClickListener { finishMultiScan() }
+                    }
+                    doneButton = doneBtn
+                    root.addView(doneBtn)
                 }
-                root.addView(hint)
+                !autoClose -> {
+                    // Single scan, manual close: hint until the first decode, then
+                    // swap to a "Found: <value>" confirm/retry pair.
+                    val hint = TextView(requireContext()).apply {
+                        text = "Point camera at QR code or barcode"
+                        setTextColor(0xFFFFFFFF.toInt())
+                        textSize = 14f
+                        gravity = Gravity.CENTER
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            Gravity.BOTTOM
+                        ).apply { bottomMargin = 260 }
+                    }
+                    scanHintView = hint
+                    root.addView(hint)
+
+                    val confirmText = TextView(requireContext()).apply {
+                        setTextColor(0xFFFFFFFF.toInt())
+                        textSize = 14f
+                        gravity = Gravity.CENTER
+                        visibility = View.GONE
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            Gravity.BOTTOM
+                        ).apply { bottomMargin = 220 }
+                    }
+                    confirmTextView = confirmText
+                    root.addView(confirmText)
+
+                    val confirmRow = android.widget.LinearLayout(requireContext()).apply {
+                        orientation = android.widget.LinearLayout.HORIZONTAL
+                        visibility = View.GONE
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                        ).apply { bottomMargin = 80 }
+                        val useBtn = android.widget.Button(requireContext()).apply {
+                            text = "Use this code"
+                            setOnClickListener { confirmSingleResult() }
+                        }
+                        val againBtn = android.widget.Button(requireContext()).apply {
+                            text = "Scan again"
+                            setOnClickListener { resumeScanning() }
+                        }
+                        addView(useBtn)
+                        addView(againBtn)
+                    }
+                    confirmButtonsRow = confirmRow
+                    root.addView(confirmRow)
+                }
+                else -> {
+                    // Default: hint label only, auto-closes on first decode.
+                    val hint = TextView(requireContext()).apply {
+                        text = "Point camera at QR code or barcode"
+                        setTextColor(0xFFFFFFFF.toInt())
+                        textSize = 14f
+                        gravity = Gravity.CENTER
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.WRAP_CONTENT,
+                            Gravity.BOTTOM
+                        ).apply { bottomMargin = 140 }
+                    }
+                    root.addView(hint)
+                }
             }
             "gallery" -> {
                 // Gallery mode: no camera UI at all — the system picker is
@@ -209,6 +429,7 @@ class SmartCameraFragment : Fragment() {
     private fun startCamera() {
         val jpegQuality = when (quality) { "low" -> 50; "medium" -> 75; else -> 95 }
 
+        ensureCameraXConfigured(requireContext())
         ProcessCameraProvider.getInstance(requireContext()).addListener({
             val provider = ProcessCameraProvider.getInstance(requireContext()).get()
 
@@ -237,7 +458,7 @@ class SmartCameraFragment : Fragment() {
 
             try {
                 provider.unbindAll()
-                provider.bindToLifecycle(viewLifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, *useCases.toTypedArray())
+                provider.bindToLifecycle(viewLifecycleOwner, AVAILABLE_CAMERAS, *useCases.toTypedArray())
             } catch (e: Exception) {
                 Log.e(TAG, "Camera bind failed", e)
                 dispatchCancelled()
@@ -250,21 +471,84 @@ class SmartCameraFragment : Fragment() {
     @androidx.camera.core.ExperimentalGetImage
     private fun analyzeFrame(proxy: ImageProxy, scanner: com.google.mlkit.vision.barcode.BarcodeScanner) {
         val mediaImage = proxy.image
-        if (mediaImage == null || scanDone) { proxy.close(); return }
+        if (mediaImage == null || (!multiple && singleResultLocked)) { proxy.close(); return }
 
         val image = InputImage.fromMediaImage(mediaImage, proxy.imageInfo.rotationDegrees)
         scanner.process(image)
             .addOnSuccessListener { barcodes ->
-                if (!scanDone && barcodes.isNotEmpty()) {
-                    val barcode = barcodes.first()
-                    val value   = barcode.rawValue ?: return@addOnSuccessListener
-                    val format  = formatName(barcode.format)
-                    scanDone = true
+                if (barcodes.isEmpty()) return@addOnSuccessListener
+                val barcode = barcodes.first()
+                val value   = barcode.rawValue ?: return@addOnSuccessListener
+                val format  = formatName(barcode.format)
+
+                if (multiple) {
+                    if (foundCodes.containsKey(value)) return@addOnSuccessListener
+                    foundCodes[value] = format
+                    Log.d(TAG, "Scanned (multi): $value ($format) — total ${foundCodes.size}")
+                    activity?.runOnUiThread { refreshMultiScanUi() }
+                } else {
+                    if (singleResultLocked) return@addOnSuccessListener
+                    singleResultLocked = true
                     Log.d(TAG, "Scanned: $value ($format)")
-                    dispatchScanResult(value, format)
+                    if (autoClose) {
+                        dispatchScanResult(value, format)
+                    } else {
+                        pendingSingleResult = value to format
+                        activity?.runOnUiThread { showSingleConfirmUi(value) }
+                    }
                 }
             }
             .addOnCompleteListener { proxy.close() }
+    }
+
+    // ─── Multi-scan UI/state ─────────────────────────────────────────────────
+
+    private fun refreshMultiScanUi() {
+        val container = foundCodesListContainer ?: return
+        container.removeAllViews()
+        foundCodes.forEach { (value, format) ->
+            val row = TextView(requireContext()).apply {
+                text = "• $value ($format)"
+                setTextColor(0xFFFFFFFF.toInt())
+                textSize = 12f
+                setPadding(24, 8, 24, 8)
+            }
+            container.addView(row)
+        }
+        doneButton?.apply {
+            text = "Done (${foundCodes.size})"
+            isEnabled = foundCodes.isNotEmpty()
+        }
+    }
+
+    private fun finishMultiScan() {
+        if (foundCodes.isEmpty()) return
+        Log.d(TAG, "Multi-scan finished with ${foundCodes.size} code(s)")
+        dispatchScanResults(foundCodes.map { it.key to it.value })
+    }
+
+    // ─── Single scan, manual-close UI/state ─────────────────────────────────
+
+    private fun showSingleConfirmUi(value: String) {
+        scanHintView?.visibility = View.GONE
+        confirmTextView?.apply {
+            text = "Found: $value"
+            visibility = View.VISIBLE
+        }
+        confirmButtonsRow?.visibility = View.VISIBLE
+    }
+
+    private fun confirmSingleResult() {
+        val (value, format) = pendingSingleResult ?: return
+        dispatchScanResult(value, format)
+    }
+
+    private fun resumeScanning() {
+        pendingSingleResult = null
+        singleResultLocked = false
+        confirmTextView?.visibility = View.GONE
+        confirmButtonsRow?.visibility = View.GONE
+        scanHintView?.visibility = View.VISIBLE
     }
 
     private fun formatName(format: Int): String = when (format) {
@@ -364,6 +648,17 @@ class SmartCameraFragment : Fragment() {
     private fun dispatchScanResult(value: String, format: String) {
         dispatch("Blutrixx\\DeviceUtils\\Events\\ScanResult", JSONObject().apply {
             put("value", value); put("format", format)
+        })
+        dismiss()
+    }
+
+    private fun dispatchScanResults(results: List<Pair<String, String>>) {
+        dispatch("Blutrixx\\DeviceUtils\\Events\\ScanResults", JSONObject().apply {
+            put("results", org.json.JSONArray().apply {
+                results.forEach { (value, format) ->
+                    put(JSONObject().apply { put("value", value); put("format", format) })
+                }
+            })
         })
         dismiss()
     }

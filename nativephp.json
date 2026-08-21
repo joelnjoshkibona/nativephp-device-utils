@@ -36,6 +36,12 @@
             "android": "com.blutrixx.device.utils.SmartCameraFunctions.Close",
             "android_params": ["activity"],
             "description": "Dismiss the camera overlay if it is currently open."
+        },
+        {
+            "name": "SmartCamera.Warm",
+            "android": "com.blutrixx.device.utils.SmartCameraFunctions.Warm",
+            "android_params": ["context"],
+            "description": "Pre-warm CameraX in the background (no UI shown) so a later SmartCamera.Open binds the camera faster. Fire-and-forget."
         }
     ],
     "events": [
@@ -44,7 +50,8 @@
         "Blutrixx\\DeviceUtils\\Events\\PermissionsResult",
         "Blutrixx\\DeviceUtils\\Events\\PhotoCaptured",
         "Blutrixx\\DeviceUtils\\Events\\CaptureCancelled",
-        "Blutrixx\\DeviceUtils\\Events\\ScanResult"
+        "Blutrixx\\DeviceUtils\\Events\\ScanResult",
+        "Blutrixx\\DeviceUtils\\Events\\ScanResults"
     ],
     "android": {
         "permissions": [

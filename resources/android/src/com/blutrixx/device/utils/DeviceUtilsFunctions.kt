@@ -76,8 +76,11 @@ object DeviceUtilsFunctions {
                     Log.w(TAG, "PickFile: picker already open, ignoring duplicate call")
                     return@runOnUiThread
                 }
+                // android.R.id.content container required — see RequestPermissions
+                // below for why a containerless .add(fragment, tag) silently never
+                // starts the fragment on at least one real device.
                 fm.beginTransaction()
-                    .add(FilePickerFragment.newInstance(mimeType), "nativephp_file_picker")
+                    .add(android.R.id.content, FilePickerFragment.newInstance(mimeType), "nativephp_file_picker")
                     .commitAllowingStateLoss()
             }
 
@@ -155,8 +158,19 @@ object DeviceUtilsFunctions {
                     Log.w(TAG, "RequestPermissions: request already in flight, ignoring duplicate call")
                     return@runOnUiThread
                 }
+                // android.R.id.content container required (matches
+                // SmartCameraFunctions.Open, which reliably works) — a headless
+                // fragment added via the containerless .add(fragment, tag)
+                // overload can silently never reach onStart() under
+                // commitAllowingStateLoss(), with no exception and no log.
+                // Confirmed live: on a real device this left PermissionsResult
+                // never firing on ANY call (even the "already granted, skip
+                // dialog" fast path — none of PermissionRequestFragment's own
+                // logs ever appeared), so every scan()/capturePhoto() silently
+                // ate the full 30s ensurePermissions() timeout before
+                // proceeding anyway.
                 fm.beginTransaction()
-                    .add(PermissionRequestFragment.newInstance(permissions, id), "nativephp_permission_request")
+                    .add(android.R.id.content, PermissionRequestFragment.newInstance(permissions, id), "nativephp_permission_request")
                     .commitAllowingStateLoss()
             }
 

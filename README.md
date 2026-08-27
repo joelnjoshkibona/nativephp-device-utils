@@ -2,9 +2,13 @@
 
 A [NativePHP Mobile](https://nativephp.com) plugin exposing device-level primitives that don't belong to any one app: safe-area insets, the system file picker, app-private storage, runtime permission requests, and a camera overlay for photo capture or continuous barcode/QR scanning.
 
+The routes, controller, and JS composables are all part of this package too (see below) — a consuming app needs zero PHP or JS code of its own to use `scan`, `photo`, `warm`, or `requestPermissions`. `getInsets`/`pickFile`/`copyToStorage` don't have a shipped route yet — call the facade directly from a route of your own (see the API reference).
+
 Composer package: `blutrixx/nativephp-device-utils`
 Repo: `joelnjoshkibona/nativephp-device-utils`
-Current release: `v1.2.0`
+Current release: `v1.3.0`
+
+**Upgrading an existing consumer from before v1.3.0?** Delete your app's own `NativeDeviceController` (or equivalent) and its `/device/scan`, `/device/camera/warm`, `/device/photo`, `/device/photo/read`, `/device/request-permissions` route lines — this package now registers those same paths itself. Leaving both in place means two controllers answer the same route; Laravel resolves to whichever registers first, which is confusing to debug and not a state you want to be in.
 
 ## Requirements
 
@@ -47,13 +51,13 @@ git submodule add https://github.com/joelnjoshkibona/nativephp-device-utils.git 
 }
 ```
 
-Laravel auto-discovers `DeviceUtilsServiceProvider` — no manual registration needed.
+Laravel auto-discovers `DeviceUtilsServiceProvider` — no manual registration needed. Its `boot()` loads this package's own `routes/web.php` (registered under the `web` middleware group), which wires `/device/scan`, `/device/camera/warm`, `/device/photo`, `/device/photo/read`, and `/device/request-permissions` straight to `Http\Controllers\DeviceUtilsController` — nothing to add to your own `routes/web.php`.
 
 ## How the bridge works
 
-Every call goes `Vue → your Laravel route → this package's facade → nativephp_call() → native Android code`. Two shapes:
+Every call goes `Vue → this package's own route → this package's facade → nativephp_call() → native Android code`. Two shapes:
 
-- **Synchronous** (`getInsets`, `copyToStorage`): the native side does the work and returns a result immediately — your Laravel controller can just `return` it.
+- **Synchronous** (`getInsets`, `copyToStorage`): the native side does the work and returns a result immediately — a route can just `return` it. (These don't have a shipped route yet — call the facade directly from a route of your own, e.g. `Route::get('/device/insets', fn () => DeviceUtils::getInsets());`.)
 - **Asynchronous** (`pickFile`, `requestPermissions`, `SmartCamera::open`): the call returns `{launched: true}` right away because the native side is opening a picker/overlay/dialog the user has to interact with. The *actual* result arrives later as a `native-event` DOM `CustomEvent` fired directly into your WebView — your frontend needs a listener for it, correlated where noted below.
 
 This package ships the canonical JS-side listener composables for `requestPermissions`, `SmartCamera::open('scan')`, and `SmartCamera::open('photo'|'gallery')` directly, under `resources/js/` — you don't need to hand-write the event-correlation logic yourself, and every consuming app stays on the same, race-free implementation instead of drifting apart. (`pickFile`/`copyToStorage` don't have shipped composables yet — the pattern below is a template for wiring those, or any future async bridge call, yourself.)
@@ -85,6 +89,8 @@ import { useScanner } from '@/composables/useScanner'
 const { scan } = useScanner()
 const { data, format } = await scan()
 ```
+
+**If you consume this package via a composer `"path"` repository** (local development — this shell's own `composer.json` does this), composer installs it as a *symlink* into `vendor/`, not a copy. Vite/Rollup then resolves this package's own imports (`axios`, inside `useScanner.ts` etc.) against the symlink's real target directory instead of your app's `node_modules`, and the build fails with `Rollup failed to resolve import "axios"`. Fix: add `resolve.preserveSymlinks: true` to `vite.config.ts`. A real install (this package pulled via its GitHub VCS repo/tag, the normal case for a generated project) is a plain copy and needs no such flag.
 
 **The one rule every one of these composables follows, and yours should too if you add another**: register the pending Promise in its correlation map *before* firing the `axios.post(...)` that starts the native call, not after `await`-ing its response. The native side can dispatch its result event in single-digit milliseconds — faster than the HTTP round-trip through the WebView resolves — and a listener that isn't registered yet silently drops the event. Confirmed live: this exact ordering bug made every `scan()`/`capturePhoto()` call eat the full 30-second `requestPermissions()` timeout before proceeding anyway, even when permission was already granted.
 
@@ -142,15 +148,7 @@ All under `Blutrixx\DeviceUtils\Events\*`:
 
 ## Quick start: scan a barcode
 
-```php
-// routes/web.php or routes/api.php
-Route::post('/device/scan', function (Request $request) {
-    \Blutrixx\DeviceUtils\Facades\SmartCamera::open(
-        'scan', 'high', $request->boolean('multiple'), $request->boolean('autoClose', true)
-    );
-    return response()->json(['started' => true]);
-});
-```
+No PHP to write — `/device/scan` already exists once this package is installed. Just wire the alias (see "Wire up the alias" above), add the one-line re-export composable file, and call it:
 
 ```ts
 // Vue -- useScanner() is shipped by this package, see "Wire up the alias" above

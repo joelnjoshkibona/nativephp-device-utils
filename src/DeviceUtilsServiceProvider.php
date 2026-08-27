@@ -15,5 +15,8 @@ class DeviceUtilsServiceProvider extends ServiceProvider
         $this->app->alias(SmartCamera::class, 'nativephp.smart-camera');
     }
 
-    public function boot(): void {}
+    public function boot(): void
+    {
+        $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+    }
 }

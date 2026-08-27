@@ -4,7 +4,7 @@ A [NativePHP Mobile](https://nativephp.com) plugin exposing device-level primiti
 
 Composer package: `blutrixx/nativephp-device-utils`
 Repo: `joelnjoshkibona/nativephp-device-utils`
-Current release: `v1.0.0`
+Current release: `v1.2.0`
 
 ## Requirements
 
@@ -56,41 +56,39 @@ Every call goes `Vue → your Laravel route → this package's facade → native
 - **Synchronous** (`getInsets`, `copyToStorage`): the native side does the work and returns a result immediately — your Laravel controller can just `return` it.
 - **Asynchronous** (`pickFile`, `requestPermissions`, `SmartCamera::open`): the call returns `{launched: true}` right away because the native side is opening a picker/overlay/dialog the user has to interact with. The *actual* result arrives later as a `native-event` DOM `CustomEvent` fired directly into your WebView — your frontend needs a listener for it, correlated where noted below.
 
-A minimal example of the JS-side listener pattern (this lives in your app, not in this package):
+This package ships the canonical JS-side listener composables for `requestPermissions`, `SmartCamera::open('scan')`, and `SmartCamera::open('photo'|'gallery')` directly, under `resources/js/` — you don't need to hand-write the event-correlation logic yourself, and every consuming app stays on the same, race-free implementation instead of drifting apart. (`pickFile`/`copyToStorage` don't have shipped composables yet — the pattern below is a template for wiring those, or any future async bridge call, yourself.)
+
+**Wire up the alias** (Vite resolves `vendor/` paths fine — no build step or publish command needed; `composer update` alone keeps consuming apps current):
 
 ```ts
-// resources/js/composables/useDeviceUtils.ts
-import axios from 'axios'
+// vite.config.ts
+import path from 'node:path'
 
-function waitForEvent(eventClass: string, timeoutMs = 30_000): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      document.removeEventListener('native-event', handler)
-      reject(new Error(`Timed out waiting for ${eventClass}`))
-    }, timeoutMs)
-
-    function handler(e: Event) {
-      const detail = (e as CustomEvent).detail
-      if (!detail?.event?.endsWith(eventClass)) return
-      clearTimeout(timer)
-      document.removeEventListener('native-event', handler)
-      resolve(detail.data)
-    }
-    document.addEventListener('native-event', handler)
-  })
-}
-
-export async function pickFile(mimeType = 'application/pdf') {
-  const resultPromise = Promise.race([
-    waitForEvent('FileSelected'),
-    waitForEvent('FilePickCancelled').then(() => { throw new Error('cancelled') }),
-  ])
-  await axios.post('/device/pick-file', { mimeType })
-  return resultPromise
-}
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@blutrixx/device-utils': path.resolve(__dirname, './vendor/blutrixx/nativephp-device-utils/resources/js'),
+    },
+  },
+})
 ```
 
-(For `requestPermissions`, generate a `crypto.randomUUID()` client-side, send it as `id`, and match it against the `id` field on the incoming `PermissionsResult` event — the native side supports multiple concurrent permission requests this way. `pickFile` and `SmartCamera` calls don't take an `id`; only one file-pick or one camera overlay can be open at a time.)
+```ts
+// your own resources/js/composables/useScanner.ts — a thin re-export, so
+// existing imports from '@/composables/useScanner' keep working unchanged
+export * from '@blutrixx/device-utils/useScanner'
+```
+
+```ts
+import { useScanner } from '@/composables/useScanner'
+
+const { scan } = useScanner()
+const { data, format } = await scan()
+```
+
+**The one rule every one of these composables follows, and yours should too if you add another**: register the pending Promise in its correlation map *before* firing the `axios.post(...)` that starts the native call, not after `await`-ing its response. The native side can dispatch its result event in single-digit milliseconds — faster than the HTTP round-trip through the WebView resolves — and a listener that isn't registered yet silently drops the event. Confirmed live: this exact ordering bug made every `scan()`/`capturePhoto()` call eat the full 30-second `requestPermissions()` timeout before proceeding anyway, even when permission was already granted.
+
+For `requestPermissions` specifically: generate a `crypto.randomUUID()` client-side, send it as `id`, and match it against the `id` field on the incoming `PermissionsResult` event — the native side supports multiple concurrent permission requests this way (already handled inside `useDevicePermissions`). `pickFile` and `SmartCamera` calls don't take an `id`; only one file-pick or one camera overlay can be open at a time.
 
 ## API reference
 
@@ -116,7 +114,8 @@ DeviceUtils::requestPermissions(['android.permission.CAMERA'], id: $requestId);
 
 | Method | Sync? | Returns | Notes |
 |---|---|---|---|
-| `open(string $mode = 'scan', string $quality = 'high')` | **Async** | `{launched: true}` | `mode: 'scan'` continuously decodes barcodes/QR and fires `ScanResult` per read; `mode: 'photo'` shows a shutter button and fires `PhotoCaptured` on capture. Either mode fires `CaptureCancelled` if the user backs out. `quality` (`'high'\|'medium'\|'low'`) only affects `'photo'` mode's JPEG output. |
+| `open(string $mode = 'scan', string $quality = 'high', bool $multiple = false, bool $autoClose = true)` | **Async** | `{launched: true}` | `mode: 'scan'` decodes barcodes/QR and fires `ScanResult` per read (or `ScanResults`, plural, if `$multiple`, once the user taps Done); `mode: 'photo'` shows a shutter button and fires `PhotoCaptured` on capture. Either mode fires `CaptureCancelled` if the user backs out. `quality` (`'high'\|'medium'\|'low'`) only affects `'photo'` mode's JPEG output. `$multiple`/`$autoClose` apply to `'scan'` mode only — see `ScanOptions` in `useScanner.ts`. |
+| `warm()` | **Async**, fire-and-forget | `{warming: true}` | Pre-binds CameraX in the background so a later `open()` shows its overlay faster — call once when a page that might scan/capture mounts. Fires no event; nothing to listen for. |
 | `close()` | Sync | `array` | Dismisses the overlay if one is open |
 
 ```php
@@ -139,20 +138,25 @@ All under `Blutrixx\DeviceUtils\Events\*`:
 | `PhotoCaptured` | `SmartCamera::open(mode: 'photo')` | `{path, base64, width, height, size}` |
 | `CaptureCancelled` | `SmartCamera::open(...)` | — (user closed the overlay) |
 | `ScanResult` | `SmartCamera::open(mode: 'scan')` | `{value, format}` — `format` is one of `QR_CODE`, `EAN_13`, `EAN_8`, `UPC_A`, `UPC_E`, `CODE_128`, `CODE_39`, `DATA_MATRIX` |
+| `ScanResults` | `SmartCamera::open(mode: 'scan', multiple: true)`, once the user taps Done | `{results: [{value, format}, ...]}` |
 
 ## Quick start: scan a barcode
 
 ```php
-// routes/api.php
-Route::post('/device/scan/open', fn () => \Blutrixx\DeviceUtils\Facades\SmartCamera::open(mode: 'scan'));
+// routes/web.php or routes/api.php
+Route::post('/device/scan', function (Request $request) {
+    \Blutrixx\DeviceUtils\Facades\SmartCamera::open(
+        'scan', 'high', $request->boolean('multiple'), $request->boolean('autoClose', true)
+    );
+    return response()->json(['started' => true]);
+});
 ```
 
 ```ts
-// Vue
-async function scanBarcode() {
-  const result = waitForEvent('ScanResult') // see the listener pattern above
-  await axios.post('/device/scan/open')
-  const { value, format } = await result
-  console.log(`Scanned ${format}: ${value}`)
-}
+// Vue -- useScanner() is shipped by this package, see "Wire up the alias" above
+import { useScanner } from '@/composables/useScanner'
+
+const { scan, scanning } = useScanner()
+const { data, format } = await scan()
+console.log(`Scanned ${format}: ${data}`)
 ```

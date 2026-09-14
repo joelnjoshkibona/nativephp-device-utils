@@ -13,7 +13,7 @@ Current release: `v1.3.0`
 ## Requirements
 
 - PHP ^8.1
-- A Laravel app running under `nativephp/mobile`
+- A Laravel app running under `nativephp/mobile` ^3.3 (enforced by `composer.json`; 4.x is not supported yet)
 - Android: adds the `android.permission.CAMERA` permission and the `com.google.mlkit:barcode-scanning:17.2.0` dependency to your app's build. Camera hardware is declared `required: false` — the plugin degrades gracefully on devices without one, but `SmartCamera` calls will fail on those devices.
 
 ## Installation

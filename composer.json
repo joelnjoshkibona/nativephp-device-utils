@@ -13,10 +13,13 @@
             "providers": [
                 "Blutrixx\\DeviceUtils\\DeviceUtilsServiceProvider"
             ]
+        },
+        "nativephp": {
+            "manifest": "nativephp.json"
         }
     },
     "require": {
         "php": "^8.1",
-        "nativephp/mobile": "^3.3"
+        "nativephp/mobile": "^3.3 || ^4.0"
     }
 }

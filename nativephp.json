@@ -54,6 +54,7 @@
         "Blutrixx\\DeviceUtils\\Events\\ScanResults"
     ],
     "android": {
+        "min_version": 26,
         "permissions": [
             "android.permission.CAMERA"
         ],
@@ -65,5 +66,9 @@
                 "com.google.mlkit:barcode-scanning:17.2.0"
             ]
         }
+    },
+
+    "ios": {
+        "min_version": "18.0"
     }
 }

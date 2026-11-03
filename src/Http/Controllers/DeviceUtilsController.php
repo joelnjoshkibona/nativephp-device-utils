@@ -262,4 +262,39 @@ class DeviceUtilsController extends Controller
         return $realPath === $realRoot
             || str_starts_with($realPath.DIRECTORY_SEPARATOR, rtrim($realRoot, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR);
     }
+
+    /**
+     * Photos the page missed (the app was killed while the picker was open). See SmartCamera::pending().
+     */
+    public function pendingPhotos(): JsonResponse
+    {
+        if (! function_exists('nativephp_call')) {
+            return response()->json(['items' => []]);
+        }
+
+        return response()->json(SmartCamera::pending());
+    }
+
+    /** One waiting photo as base64. */
+    public function takePhoto(Request $request): JsonResponse
+    {
+        $id = $request->string('id')->toString();
+        if ($id === '' || ! function_exists('nativephp_call')) {
+            return response()->json(['error' => 'Photo not found'], 404);
+        }
+        $r = SmartCamera::take($id);
+
+        return isset($r['base64']) ? response()->json($r) : response()->json(['error' => 'Photo not found'], 404);
+    }
+
+    /** The page has used the photo. */
+    public function ackPhoto(Request $request): JsonResponse
+    {
+        $id = $request->string('id')->toString();
+        if ($id !== '' && function_exists('nativephp_call')) {
+            SmartCamera::ack($id);
+        }
+
+        return response()->json(['acknowledged' => true]);
+    }
 }

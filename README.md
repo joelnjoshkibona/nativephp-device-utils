@@ -10,6 +10,18 @@ Current release: `v1.3.0`
 
 **Upgrading an existing consumer from before v1.3.0?** Delete your app's own `NativeDeviceController` (or equivalent) and its `/device/scan`, `/device/camera/warm`, `/device/photo`, `/device/photo/read`, `/device/request-permissions` route lines — this package now registers those same paths itself. Leaving both in place means two controllers answer the same route; Laravel resolves to whichever registers first, which is confusing to debug and not a state you want to be in.
 
+## Photos that survive the app being killed (unreleased, after v1.4.0)
+
+On a phone with little memory Android can kill the app while the system picker (gallery) is in front. The picked photo then reaches a page that has not loaded yet, and the `PhotoCaptured` event is lost. Now every photo, from the camera or the gallery, is saved natively (`files/smart_camera_pending/`) before the event is sent, and `PhotoCaptured` carries its `id`. A photo nobody confirms is deleted after 48 hours.
+
+* `capturePhoto()` acknowledges the photo for you once the page has received it. Nothing to change in an existing app.
+* New: call `recoverPhotos()` when a page that uses the camera mounts. It returns the photos that never arrived (`{ base64, mimeType, id, width, height }[]`) and you save them like a normal capture; call `ackPhoto(id)` after saving each one.
+* PHP: `SmartCamera::pending()`, `SmartCamera::take($id)`, `SmartCamera::ack($id)`; routes `POST /device/photo/pending`, `/device/photo/take`, `/device/photo/ack`.
+* Also fixed: when Android restored the camera fragment after killing the app, it opened the gallery a second time. It now relies on the result Android already holds.
+* Also new: `SmartCamera.Open` hides the soft keyboard and blurs the page before the camera or gallery appears.
+
+Tested on a Telpo M1K (Android 12): gallery opened, app process killed with the picker open, photo picked, app restarted. The photo (73 KB) was found in the pending folder, collected by the page on load, shown in the editor, acknowledged, and the pending folder was empty. A normal pick without a kill arrived live and was acknowledged too. No second picker opened.
+
 ## Requirements
 
 - PHP ^8.1

@@ -10,5 +10,6 @@ class PhotoCaptured
         public readonly int    $width,
         public readonly int    $height,
         public readonly int    $size,
+        public readonly ?string $id = null,
     ) {}
 }

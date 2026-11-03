@@ -408,7 +408,9 @@ class SmartCameraFragment : Fragment() {
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         if (mode == "gallery") {
-            pickImageLauncher.launch("image/*")
+            // `saved` is not null when Android recreated this fragment after killing the app while the picker was open.
+            // The picker's result is then handed to pickImageLauncher by Android itself; launching again would open a second picker.
+            if (saved == null) pickImageLauncher.launch("image/*")
             return
         }
 
@@ -640,7 +642,11 @@ class SmartCameraFragment : Fragment() {
         if (bmp !== raw) bmp.recycle()
         raw.recycle()
 
-        activity?.runOnUiThread { dispatchPhotoResult(sourcePath, b64, w, h, sz) }
+        // Written before the event is sent: if the page never receives it (app killed, page still loading), the photo
+        // waits here for SmartCamera.Pending / Take. The page confirms with Ack once it has used the photo.
+        val id = context?.applicationContext?.let { PendingPhotos.save(it, outBytes, w, h) }
+
+        activity?.runOnUiThread { dispatchPhotoResult(sourcePath, b64, w, h, sz, id) }
     }
 
     // ─── Event dispatch ──────────────────────────────────────────────────────
@@ -663,10 +669,11 @@ class SmartCameraFragment : Fragment() {
         dismiss()
     }
 
-    private fun dispatchPhotoResult(path: String, base64: String, width: Int, height: Int, size: Int) {
+    private fun dispatchPhotoResult(path: String, base64: String, width: Int, height: Int, size: Int, id: String?) {
         dispatch("Blutrixx\\DeviceUtils\\Events\\PhotoCaptured", JSONObject().apply {
             put("path", path); put("base64", base64)
             put("width", width); put("height", height); put("size", size)
+            if (id != null) put("id", id)
         })
         dismiss()
     }

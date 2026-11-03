@@ -15,5 +15,8 @@ Route::middleware('web')->group(function () {
     Route::post('/device/camera/warm', [DeviceUtilsController::class, 'warmCamera']);
     Route::post('/device/photo', [DeviceUtilsController::class, 'photo']);
     Route::post('/device/photo/read', [DeviceUtilsController::class, 'readPhoto']);
+    Route::post('/device/photo/pending', [DeviceUtilsController::class, 'pendingPhotos']);
+    Route::post('/device/photo/take', [DeviceUtilsController::class, 'takePhoto']);
+    Route::post('/device/photo/ack', [DeviceUtilsController::class, 'ackPhoto']);
     Route::post('/device/request-permissions', [DeviceUtilsController::class, 'requestPermissions']);
 });

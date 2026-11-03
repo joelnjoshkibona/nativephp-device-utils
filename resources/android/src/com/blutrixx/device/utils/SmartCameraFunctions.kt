@@ -1,11 +1,13 @@
 package com.blutrixx.device.utils
 
 import android.content.Context
+import android.util.Base64
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import org.json.JSONObject
 import com.nativephp.mobile.bridge.BridgeFunction
 import com.nativephp.mobile.bridge.BridgeResponse
 import com.nativephp.mobile.utils.WebViewProvider
@@ -132,6 +134,40 @@ object SmartCameraFunctions {
                 }
             }
             return BridgeResponse.success(mapOf("closed" to true))
+        }
+    }
+    /**
+     * Photos taken or picked that the page has not acknowledged. Returns { count, items } where items is a JSON string
+     * of [{ id, width, height, size, takenAt }]. Call it when a page that uses the camera mounts.
+     */
+    class Pending(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val items = PendingPhotos.list(context)
+            return BridgeResponse.success(mapOf("count" to items.length(), "items" to items.toString()))
+        }
+    }
+
+    /** One waiting photo as base64. It stays until Ack, so a crash while using it does not lose it. */
+    class Take(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val id = parameters["id"] as? String ?: return BridgeResponse.error("INVALID", "Missing id")
+            val bytes = PendingPhotos.read(context, id) ?: return BridgeResponse.error("NOT_FOUND", "No such photo")
+            val m = PendingPhotos.meta(context, id) ?: JSONObject()
+            return BridgeResponse.success(
+                mapOf(
+                    "id" to id, "base64" to Base64.encodeToString(bytes, Base64.NO_WRAP), "mimeType" to "image/jpeg",
+                    "width" to m.optInt("width"), "height" to m.optInt("height"), "size" to bytes.size,
+                ),
+            )
+        }
+    }
+
+    /** The page has used the photo: delete it. */
+    class Ack(private val context: Context) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val id = parameters["id"] as? String ?: return BridgeResponse.error("INVALID", "Missing id")
+            PendingPhotos.remove(context, id)
+            return BridgeResponse.success(mapOf("acknowledged" to id))
         }
     }
 }

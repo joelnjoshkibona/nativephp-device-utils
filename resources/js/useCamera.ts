@@ -5,6 +5,8 @@ import { ensurePermissions } from './usePermissions'
 export interface PhotoResult {
     base64: string
     mimeType: string
+    /** Set when the photo was also saved natively; capturePhoto() acknowledges it for you, recoverPhotos() too. */
+    id?: string
 }
 
 export interface CaptureOptions {
@@ -63,10 +65,16 @@ function attachListener() {
         // Delivered event name is the full FQCN tail including the `Events\`
         // sub-namespace (verified live: 'Blutrixx\DeviceUtils\Events\PhotoCaptured').
         if (eventName.endsWith('Events\\PhotoCaptured')) {
+            const id = payload?.id as string | undefined
+            const waiting = pendingCapture !== null
             settle((pending) => pending.resolve({
                 base64: payload?.base64,
                 mimeType: payload?.mimeType || 'image/jpeg',
+                id,
             }))
+            // The page has the photo now: delete the native copy. If no capture was waiting (the page was reloaded or the
+            // app restarted), settle() did nothing, nothing is acknowledged, and recoverPhotos() finds it.
+            if (id && waiting) void ackPhoto(id)
         }
         // Covers an explicit cancel (close/back button, backing out of the
         // gallery picker), a denied CAMERA permission, or a gallery pick that
@@ -151,4 +159,29 @@ export function useCamera() {
         capturePhoto,
         cancel,
     }
+}
+
+
+/** Tell the native side a photo has been used so its saved copy is deleted. Best effort. */
+export async function ackPhoto(id: string): Promise<void> {
+    try { await axios.post('/device/photo/ack', { id }) } catch { /* best-effort only */ }
+}
+
+/**
+ * Photos taken or picked that never reached the page, for example because Android killed the app while the gallery
+ * was open. Call once when a page that uses the camera mounts, save what it returns, and each one is acknowledged here
+ * after it is handed back (a crash between the two returns it again next time).
+ */
+export async function recoverPhotos(): Promise<Array<PhotoResult & { width?: number; height?: number }>> {
+    const out: Array<PhotoResult & { width?: number; height?: number }> = []
+    try {
+        const { data } = await axios.post('/device/photo/pending')
+        for (const item of data?.items ?? []) {
+            try {
+                const r = await axios.post('/device/photo/take', { id: item.id })
+                out.push({ base64: r.data.base64, mimeType: r.data.mimeType || 'image/jpeg', id: item.id, width: r.data.width, height: r.data.height })
+            } catch { /* gone: skip */ }
+        }
+    } catch { /* not in the app, or no bridge: nothing to recover */ }
+    return out
 }

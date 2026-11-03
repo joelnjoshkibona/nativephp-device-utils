@@ -4,44 +4,82 @@
         {
             "name": "DeviceUtils.GetInsets",
             "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.GetInsets",
-            "android_params": ["activity"],
+            "android_params": [
+                "activity"
+            ],
             "description": "Get device system bar insets (status bar, navigation bar heights in dp)"
         },
         {
             "name": "DeviceUtils.PickFile",
             "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.PickFile",
-            "android_params": ["activity"],
+            "android_params": [
+                "activity"
+            ],
             "description": "Launch the system file picker via SAF; fires FileSelected or FilePickCancelled event asynchronously"
         },
         {
             "name": "DeviceUtils.CopyToStorage",
             "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.CopyToStorage",
-            "android_params": ["activity"],
+            "android_params": [
+                "activity"
+            ],
             "description": "Copy a SAF content URI into app-private internal storage; returns destination path and size"
         },
         {
             "name": "DeviceUtils.RequestPermissions",
             "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.RequestPermissions",
-            "android_params": ["activity"],
+            "android_params": [
+                "activity"
+            ],
             "description": "Request one or more dangerous Android runtime permissions via the system dialog; fires PermissionsResult event asynchronously"
         },
         {
             "name": "SmartCamera.Open",
             "android": "com.blutrixx.device.utils.SmartCameraFunctions.Open",
-            "android_params": ["activity"],
+            "android_params": [
+                "activity"
+            ],
             "description": "Open the camera overlay. mode='scan' continuously detects barcodes/QR codes and fires ScanResult; mode='photo' shows a shutter button and fires PhotoCaptured."
         },
         {
             "name": "SmartCamera.Close",
             "android": "com.blutrixx.device.utils.SmartCameraFunctions.Close",
-            "android_params": ["activity"],
+            "android_params": [
+                "activity"
+            ],
             "description": "Dismiss the camera overlay if it is currently open."
         },
         {
             "name": "SmartCamera.Warm",
             "android": "com.blutrixx.device.utils.SmartCameraFunctions.Warm",
-            "android_params": ["context"],
+            "android_params": [
+                "context"
+            ],
             "description": "Pre-warm CameraX in the background (no UI shown) so a later SmartCamera.Open binds the camera faster. Fire-and-forget."
+        },
+        {
+            "name": "SmartCamera.Pending",
+            "android": "com.blutrixx.device.utils.SmartCameraFunctions.Pending",
+            "android_params": [
+                "context"
+            ],
+            "description": "Photos taken or picked that the page has not acknowledged yet (survives the app being killed)"
+        },
+        {
+            "name": "SmartCamera.Take",
+            "android": "com.blutrixx.device.utils.SmartCameraFunctions.Take",
+            "android_params": [
+                "context"
+            ],
+            "description": "Read one waiting photo as base64; it stays until Ack"
+        },
+        {
+            "name": "SmartCamera.Ack",
+            "android": "com.blutrixx.device.utils.SmartCameraFunctions.Ack",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete a waiting photo once the page has used it"
         }
     ],
     "events": [
@@ -59,7 +97,10 @@
             "android.permission.CAMERA"
         ],
         "features": [
-            {"name": "android.hardware.camera", "required": false}
+            {
+                "name": "android.hardware.camera",
+                "required": false
+            }
         ],
         "dependencies": {
             "implementation": [
@@ -67,7 +108,6 @@
             ]
         }
     },
-
     "ios": {
         "min_version": "18.0"
     }

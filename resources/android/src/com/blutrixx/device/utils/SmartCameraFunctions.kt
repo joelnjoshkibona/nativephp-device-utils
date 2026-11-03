@@ -2,16 +2,36 @@ package com.blutrixx.device.utils
 
 import android.content.Context
 import android.util.Log
+import android.view.inputmethod.InputMethodManager
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.nativephp.mobile.bridge.BridgeFunction
 import com.nativephp.mobile.bridge.BridgeResponse
+import com.nativephp.mobile.utils.WebViewProvider
 
 object SmartCameraFunctions {
 
     private const val TAG = "SmartCamera"
     private const val FRAGMENT_TAG = "nativephp_smart_camera"
+
+    /**
+     * Close the soft keyboard and drop the page's text focus before the camera or the gallery opens.
+     * Left open, the keyboard covers part of the overlay, and the editor takes focus again (keyboard back up)
+     * as soon as the person returns. Must run on the UI thread.
+     */
+    fun hideKeyboard(activity: FragmentActivity) {
+        try {
+            val view = activity.currentFocus ?: activity.window.decorView
+            val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+            (activity as? WebViewProvider)?.getWebView()?.evaluateJavascript(
+                "if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur()", null,
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "hideKeyboard failed (non-fatal): ${e.message}")
+        }
+    }
 
     /**
      * Open the camera overlay.
@@ -40,6 +60,7 @@ object SmartCameraFunctions {
                     Log.w(TAG, "Open: camera already open, ignoring duplicate call")
                     return@runOnUiThread
                 }
+                hideKeyboard(activity)
                 fm.beginTransaction()
                     .add(android.R.id.content, SmartCameraFragment.newInstance(mode, quality, multiple, autoClose), FRAGMENT_TAG)
                     .addToBackStack(FRAGMENT_TAG)

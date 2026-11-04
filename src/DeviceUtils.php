@@ -72,4 +72,40 @@ class DeviceUtils
 
         return $result ? (json_decode($result, true) ?? []) : [];
     }
+
+    /**
+     * Start recording a voice note (AAC .m4a in the app's private files folder). Returns {started: true}, or an error with the
+     * code NO_PERMISSION until RECORD_AUDIO has been granted (ask with requestPermissions first), or BUSY.
+     */
+    public function voiceStart(): array
+    {
+        $result = nativephp_call('DeviceUtils.VoiceStart', '{}');
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
+
+    /** Stop the recording. Returns {path, filename, seconds, size}, or the error TOO_SHORT / NOT_RECORDING. */
+    public function voiceStop(): array
+    {
+        $result = nativephp_call('DeviceUtils.VoiceStop', '{}');
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
+
+    /** Stop and throw the recording away. */
+    public function voiceCancel(): array
+    {
+        $result = nativephp_call('DeviceUtils.VoiceCancel', '{}');
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
+
+    /** How loud it has been since the last call, 0 to 1, for a level meter. */
+    public function voiceLevel(): float
+    {
+        $result = nativephp_call('DeviceUtils.VoiceLevel', '{}');
+        $data = $result ? (json_decode($result, true) ?? []) : [];
+
+        return (float) ($data['level'] ?? 0);
+    }
 }

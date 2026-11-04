@@ -309,4 +309,23 @@ class DeviceUtilsController extends Controller
 
         return response()->json(DeviceUtils::setBackIntercept($request->boolean('enabled', true)));
     }
+
+    /**
+     * Voice notes: start, stop, cancel and a level for a meter. Start answers {started: false, code: 'NO_PERMISSION'} until the person has
+     * granted RECORD_AUDIO (requestPermissions); stop answers the file's path, length and size, which the app copies into its own storage.
+     */
+    public function voice(Request $request, string $action): JsonResponse
+    {
+        if (! function_exists('nativephp_call')) {
+            return response()->json(['error' => 'Native bridge not available. Run this inside the mobile app.'], 503);
+        }
+
+        return response()->json(match ($action) {
+            'start' => DeviceUtils::voiceStart(),
+            'stop' => DeviceUtils::voiceStop(),
+            'cancel' => DeviceUtils::voiceCancel(),
+            'level' => ['level' => DeviceUtils::voiceLevel()],
+            default => abort(404),
+        });
+    }
 }

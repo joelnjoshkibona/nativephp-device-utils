@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Facade;
  * @method static array requestPermissions(array $permissions, ?string $id = null)
  *
  * @method static array setBackIntercept(bool $enabled)
+ * @method static array voiceStart()
+ * @method static array voiceStop()
+ * @method static array voiceCancel()
+ * @method static float voiceLevel()
  *
  * @see \NativePHP\DeviceUtils\DeviceUtils
  */

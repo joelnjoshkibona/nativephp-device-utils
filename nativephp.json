@@ -88,6 +88,38 @@
                 "activity"
             ],
             "description": "Send Android's Back button to the page as a BackPressed event (enabled=true) or give it back (enabled=false)"
+        },
+        {
+            "name": "DeviceUtils.VoiceStart",
+            "android": "com.blutrixx.device.utils.VoiceFunctions.Start",
+            "android_params": [
+                "context"
+            ],
+            "description": "Start recording a voice note into the app's private files folder; NO_PERMISSION until RECORD_AUDIO is granted"
+        },
+        {
+            "name": "DeviceUtils.VoiceStop",
+            "android": "com.blutrixx.device.utils.VoiceFunctions.Stop",
+            "android_params": [
+                "context"
+            ],
+            "description": "Stop recording; returns the file path, length in seconds and size"
+        },
+        {
+            "name": "DeviceUtils.VoiceCancel",
+            "android": "com.blutrixx.device.utils.VoiceFunctions.Cancel",
+            "android_params": [
+                "context"
+            ],
+            "description": "Stop recording and delete the file"
+        },
+        {
+            "name": "DeviceUtils.VoiceLevel",
+            "android": "com.blutrixx.device.utils.VoiceFunctions.Level",
+            "android_params": [
+                "context"
+            ],
+            "description": "How loud it has been since the last call, 0 to 1, for a level meter"
         }
     ],
     "events": [
@@ -103,11 +135,16 @@
     "android": {
         "min_version": 26,
         "permissions": [
-            "android.permission.CAMERA"
+            "android.permission.CAMERA",
+            "android.permission.RECORD_AUDIO"
         ],
         "features": [
             {
                 "name": "android.hardware.camera",
+                "required": false
+            },
+            {
+                "name": "android.hardware.microphone",
                 "required": false
             }
         ],

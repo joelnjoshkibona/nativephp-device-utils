@@ -136,4 +136,15 @@ class DeviceUtils
 
         return $result ? (json_decode($result, true) ?? []) : [];
     }
+
+    /**
+     * Copy a file from the app's private storage into Downloads/<folder> without opening it (a backup, an export). Returns {saved: true, path},
+     * or an error (UNSUPPORTED before Android 10, BAD_PATH, COPY_ERROR).
+     */
+    public function saveFile(string $path, string $mime, string $name, string $folder = 'Hodie'): array
+    {
+        $result = nativephp_call('DeviceUtils.SaveFile', json_encode(['path' => $path, 'mime' => $mime, 'name' => $name, 'folder' => $folder]));
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
 }

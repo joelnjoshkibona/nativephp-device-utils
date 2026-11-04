@@ -18,7 +18,8 @@ import java.io.File
  * Other apps cannot read the private folder, so the file is copied once into the phone's Downloads folder (Downloads/<folder>, through
  * MediaStore, no storage permission needed) and opened from there. Asking again for the same file reuses the copy. Needs Android 10 or newer.
  *
- * Parameters: path (a file inside the app's own data folder), mime, name (the name to show), folder (default "Hodie").
+ * Parameters: path (a file inside the app's own data folder), mime, name (the name to show), folder (default "Hodie"), open (default true; false
+ * only saves the copy into Downloads and does not open it: that is DeviceUtils.SaveFile).
  */
 object OpenFileFunctions {
     private const val TAG = "OpenFile"
@@ -33,6 +34,7 @@ object OpenFileFunctions {
             if (!src.path.startsWith(root.path + "/") || !src.isFile) return BridgeResponse.error("BAD_PATH", "That file is not available")
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return BridgeResponse.error("UNSUPPORTED", "Opening files needs Android 10 or newer")
             val name = ((parameters["name"] as? String) ?: src.name).replace(Regex("[\\\\/:*?\"<>|]"), "_").ifBlank { src.name }
+            val openIt = parameters["open"] as? Boolean ?: true
 
             return try {
                 val resolver = activity.contentResolver
@@ -55,6 +57,7 @@ object OpenFileFunctions {
                     values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0)
                     resolver.update(uri, values, null, null)
                 }
+                if (!openIt) return BridgeResponse.success(mapOf("saved" to true, "uri" to uri.toString(), "path" to rel + name))
                 val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
                 try {
                     activity.startActivity(view)
@@ -67,5 +70,10 @@ object OpenFileFunctions {
                 BridgeResponse.error("OPEN_ERROR", e.message ?: "The file could not be opened")
             }
         }
+    }
+
+    /** Same copy into Downloads/<folder>, without opening it: for a backup or an export the person wants to find in Files. */
+    class SaveFile(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> = OpenFile(activity).execute(parameters + mapOf("open" to false))
     }
 }

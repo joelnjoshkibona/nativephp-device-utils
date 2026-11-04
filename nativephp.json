@@ -144,6 +144,14 @@
                 "context"
             ],
             "description": "Delete a waiting copy of a picked file once the page has stored its own"
+        },
+        {
+            "name": "DeviceUtils.SaveFile",
+            "android": "com.blutrixx.device.utils.OpenFileFunctions.SaveFile",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Copy a file from the app's private storage into Downloads/<folder> without opening it (Android 10 or newer)"
         }
     ],
     "events": [

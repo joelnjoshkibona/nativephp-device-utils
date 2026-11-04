@@ -51,12 +51,24 @@ object DeviceUtilsFunctions {
                 else -> "buttons"
             }
 
-            Log.d(TAG, "GetInsets: statusBar=${statusBarDp}dp, navBar=${navBarDp}dp, mode=$navigationMode")
+            // Where content must not go: the system bars together with any display cutout (notch, punch hole, curved
+            // edges), on all four sides. A notch can be taller than the status bar, so top and bottom are not just the bars.
+            val safe = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val safeTop = (safe.top / density).toInt()
+            val safeBottom = (safe.bottom / density).toInt()
+            val safeLeft = (safe.left / density).toInt()
+            val safeRight = (safe.right / density).toInt()
+
+            Log.d(TAG, "GetInsets: statusBar=${statusBarDp}dp, navBar=${navBarDp}dp, mode=$navigationMode, safe=$safeTop/$safeRight/$safeBottom/$safeLeft dp")
 
             return BridgeResponse.success(mapOf(
                 "statusBarHeight" to statusBarDp,
                 "navigationBarHeight" to navBarDp,
-                "navigationMode" to navigationMode
+                "navigationMode" to navigationMode,
+                "safeTop" to safeTop,
+                "safeRight" to safeRight,
+                "safeBottom" to safeBottom,
+                "safeLeft" to safeLeft
             ))
         }
     }

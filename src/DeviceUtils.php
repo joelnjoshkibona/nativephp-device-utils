@@ -4,6 +4,10 @@ namespace Blutrixx\DeviceUtils;
 
 class DeviceUtils
 {
+    /**
+     * @return array{statusBarHeight?: int, navigationBarHeight?: int, navigationMode?: string, safeTop?: int, safeRight?: int, safeBottom?: int, safeLeft?: int}
+     *         All in dp (CSS px). safe* are the system bars together with any display cutout, per side: pad content by these.
+     */
     public function getInsets(): array
     {
         $result = nativephp_call('DeviceUtils.GetInsets', '{}');

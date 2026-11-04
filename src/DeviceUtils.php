@@ -108,4 +108,16 @@ class DeviceUtils
 
         return (float) ($data['level'] ?? 0);
     }
+
+    /**
+     * Open a file from the app's private storage with whichever app handles its type. The file is copied once into Downloads/<folder>
+     * (other apps cannot read the private folder) and opened from there. Returns {opened: true}, or an error with the code
+     * NO_APP, UNSUPPORTED (before Android 10), BAD_PATH or COPY_ERROR.
+     */
+    public function openFile(string $path, string $mime, string $name, string $folder = 'Hodie'): array
+    {
+        $result = nativephp_call('DeviceUtils.OpenFile', json_encode(['path' => $path, 'mime' => $mime, 'name' => $name, 'folder' => $folder]));
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
 }

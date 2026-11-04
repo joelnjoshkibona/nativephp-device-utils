@@ -120,6 +120,14 @@
                 "context"
             ],
             "description": "How loud it has been since the last call, 0 to 1, for a level meter"
+        },
+        {
+            "name": "DeviceUtils.OpenFile",
+            "android": "com.blutrixx.device.utils.OpenFileFunctions.OpenFile",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Open a file from the app's private storage with another app (copied once into Downloads/<folder>); Android 10 or newer"
         }
     ],
     "events": [

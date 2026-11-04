@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static array voiceStop()
  * @method static array voiceCancel()
  * @method static float voiceLevel()
+ * @method static array openFile(string $path, string $mime, string $name, string $folder = 'Hodie')
  *
  * @see \NativePHP\DeviceUtils\DeviceUtils
  */

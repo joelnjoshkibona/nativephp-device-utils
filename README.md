@@ -22,6 +22,13 @@ On a phone with little memory Android can kill the app while the system picker (
 
 Tested on a Telpo M1K (Android 12): gallery opened, app process killed with the picker open, photo picked, app restarted. The photo (73 KB) was found in the pending folder, collected by the page on load, shown in the editor, acknowledged, and the pending folder was empty. A normal pick without a kill arrived live and was acknowledged too. No second picker opened.
 
+## Voice notes and opening files (unreleased, after v1.4.0)
+
+* `DeviceUtils::voiceStart()`, `voiceStop()`, `voiceCancel()`, `voiceLevel()`: record a voice note with the microphone into the app's private `hodie_import` folder (AAC in `.m4a`, mono, 64 kbit/s). `voiceStart()` answers the error code `NO_PERMISSION` until `RECORD_AUDIO` has been granted (ask with `requestPermissions()` first). `voiceStop()` returns `{path, filename, seconds, size}`. Routes `POST /device/voice/{start,stop,cancel,level}`. Android lets only an app in the foreground use the microphone, so a recording ends when the app is left.
+* `DeviceUtils::openFile($path, $mime, $name, $folder = 'Hodie')`: open a file from the app's private storage with the app that handles its type. Other apps cannot read the private folder, so the file is copied once into `Downloads/<folder>` (MediaStore, no storage permission) and opened from there. Needs Android 10 or newer; errors `NO_APP`, `UNSUPPORTED`, `BAD_PATH`.
+
+Tested on an Android 16 emulator: permission dialog, a 12 second recording (101 KB), a PDF opened through the system "Open with" list.
+
 ## Requirements
 
 - PHP ^8.1

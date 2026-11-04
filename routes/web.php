@@ -19,4 +19,5 @@ Route::middleware('web')->group(function () {
     Route::post('/device/photo/take', [DeviceUtilsController::class, 'takePhoto']);
     Route::post('/device/photo/ack', [DeviceUtilsController::class, 'ackPhoto']);
     Route::post('/device/request-permissions', [DeviceUtilsController::class, 'requestPermissions']);
+    Route::post('/device/back-intercept', [DeviceUtilsController::class, 'backIntercept']);
 });

@@ -57,4 +57,15 @@ class DeviceUtils
 
         return $result ? (json_decode($result, true) ?? []) : [];
     }
+
+    /**
+     * Take over Android's Back button for the page (true) or give it back (false). While taken over, each Back press
+     * reaches the page as a BackPressed event and nothing else happens. Switch it off when the next press should close the app.
+     */
+    public function setBackIntercept(bool $enabled): array
+    {
+        $result = nativephp_call('DeviceUtils.SetBackIntercept', json_encode(['enabled' => $enabled]));
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
 }

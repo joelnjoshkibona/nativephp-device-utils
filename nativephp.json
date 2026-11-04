@@ -80,6 +80,14 @@
                 "context"
             ],
             "description": "Delete a waiting photo once the page has used it"
+        },
+        {
+            "name": "DeviceUtils.SetBackIntercept",
+            "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.SetBackIntercept",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Send Android's Back button to the page as a BackPressed event (enabled=true) or give it back (enabled=false)"
         }
     ],
     "events": [
@@ -89,7 +97,8 @@
         "Blutrixx\\DeviceUtils\\Events\\PhotoCaptured",
         "Blutrixx\\DeviceUtils\\Events\\CaptureCancelled",
         "Blutrixx\\DeviceUtils\\Events\\ScanResult",
-        "Blutrixx\\DeviceUtils\\Events\\ScanResults"
+        "Blutrixx\\DeviceUtils\\Events\\ScanResults",
+        "Blutrixx\\DeviceUtils\\Events\\BackPressed"
     ],
     "android": {
         "min_version": 26,

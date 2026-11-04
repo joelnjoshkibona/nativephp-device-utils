@@ -3,11 +3,13 @@ package com.blutrixx.device.utils
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentActivity
 import com.nativephp.mobile.bridge.BridgeFunction
 import com.nativephp.mobile.bridge.BridgeResponse
+import com.nativephp.mobile.utils.NativeActionCoordinator
 import org.json.JSONArray
 import java.io.File
 
@@ -182,6 +184,47 @@ object DeviceUtilsFunctions {
             is List<*> -> value.filterIsInstance<String>().toTypedArray()
             is Array<*> -> value.filterIsInstance<String>().toTypedArray()
             else -> emptyArray()
+        }
+    }
+
+    /** The one Back-button callback this plugin adds to the activity, and the activity it belongs to. */
+    private object BackBridge {
+        var callback: OnBackPressedCallback? = null
+        var owner: FragmentActivity? = null
+    }
+
+    /**
+     * Take over Android's Back button for the page, or give it back.
+     *
+     * enabled = true : every Back press is sent to the page as a BackPressed event and nothing else happens. The page
+     *                  decides (close a sheet, go back a screen, show "press back again").
+     * enabled = false: Back works as NativePHP does by default (the web view goes back, then the app closes).
+     *
+     * A web page cannot do this with the history API: Chrome skips history entries a page adds without a user gesture,
+     * so a Back press could close the app instead of reaching the page. Call it once when the app starts, and switch it
+     * off when the next Back press should leave the app.
+     */
+    class SetBackIntercept(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val enabled = parameters["enabled"] as? Boolean ?: true
+            activity.runOnUiThread {
+                val existing = BackBridge.callback
+                if (existing != null && BackBridge.owner === activity) {
+                    existing.isEnabled = enabled
+                } else {
+                    // First call, or the activity was recreated (the old callback died with it).
+                    existing?.remove()
+                    val cb = object : OnBackPressedCallback(enabled) {
+                        override fun handleOnBackPressed() {
+                            NativeActionCoordinator.dispatchEvent(activity, "Blutrixx\\DeviceUtils\\Events\\BackPressed", "{}")
+                        }
+                    }
+                    BackBridge.callback = cb
+                    BackBridge.owner = activity
+                    activity.onBackPressedDispatcher.addCallback(activity, cb)
+                }
+            }
+            return BridgeResponse.success(mapOf("enabled" to enabled))
         }
     }
 }

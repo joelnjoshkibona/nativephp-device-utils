@@ -128,6 +128,22 @@
                 "activity"
             ],
             "description": "Open a file from the app's private storage with another app (copied once into Downloads/<folder>); Android 10 or newer"
+        },
+        {
+            "name": "DeviceUtils.FilePending",
+            "android": "com.blutrixx.device.utils.FileFunctions.Pending",
+            "android_params": [
+                "context"
+            ],
+            "description": "Picked files the page has not acknowledged yet (copied into the app folder when the picker returned; survives the app being killed)"
+        },
+        {
+            "name": "DeviceUtils.FileAck",
+            "android": "com.blutrixx.device.utils.FileFunctions.Ack",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete a waiting copy of a picked file once the page has stored its own"
         }
     ],
     "events": [

@@ -120,4 +120,20 @@ class DeviceUtils
 
         return $result ? (json_decode($result, true) ?? []) : [];
     }
+
+    /** Picked files the page has not acknowledged yet: {items: [{id, path, filename, mimeType, size}]}. */
+    public function filePending(): array
+    {
+        $result = nativephp_call('DeviceUtils.FilePending', '{}');
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
+
+    /** Delete the waiting copy of a picked file once the app has stored its own. */
+    public function fileAck(string $id): array
+    {
+        $result = nativephp_call('DeviceUtils.FileAck', json_encode(['id' => $id]));
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
 }

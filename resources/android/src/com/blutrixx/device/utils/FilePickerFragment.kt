@@ -39,17 +39,20 @@ class FilePickerFragment : Fragment() {
                 Log.w(TAG, "Could not persist URI permission: ${e.message}")
             }
 
+            // Copy it now: if Android killed the app while the picker was open, the page is not there to do it (see PendingFiles).
+            val saved = PendingFiles.save(requireContext(), uri)
             val (filename, size) = queryUriMetadata(uri)
-            Log.d(TAG, "File selected: $filename ($size bytes)")
+            Log.d(TAG, "File selected: $filename ($size bytes), copy ${saved?.optString("path")}")
 
             NativeActionCoordinator.dispatchEvent(
                 host,
                 "Blutrixx\\DeviceUtils\\Events\\FileSelected",
                 JSONObject().apply {
                     put("uri", uri.toString())
-                    put("filename", filename)
-                    put("size", size)
-                    put("mimeType", mimeType)
+                    put("filename", saved?.optString("filename") ?: filename)
+                    put("size", saved?.optLong("size") ?: size)
+                    put("mimeType", saved?.optString("mimeType") ?: mimeType)
+                    if (saved != null) { put("id", saved.optString("id")); put("path", saved.optString("path")) }
                 }.toString()
             )
         } else {

@@ -27,7 +27,9 @@ Tested on a Telpo M1K (Android 12): gallery opened, app process killed with the 
 * `DeviceUtils::voiceStart()`, `voiceStop()`, `voiceCancel()`, `voiceLevel()`: record a voice note with the microphone into the app's private `hodie_import` folder (AAC in `.m4a`, mono, 64 kbit/s). `voiceStart()` answers the error code `NO_PERMISSION` until `RECORD_AUDIO` has been granted (ask with `requestPermissions()` first). `voiceStop()` returns `{path, filename, seconds, size}`. Routes `POST /device/voice/{start,stop,cancel,level}`. Android lets only an app in the foreground use the microphone, so a recording ends when the app is left.
 * `DeviceUtils::openFile($path, $mime, $name, $folder = 'Hodie')`: open a file from the app's private storage with the app that handles its type. Other apps cannot read the private folder, so the file is copied once into `Downloads/<folder>` (MediaStore, no storage permission) and opened from there. Needs Android 10 or newer; errors `NO_APP`, `UNSUPPORTED`, `BAD_PATH`.
 
-Tested on an Android 16 emulator: permission dialog, a 12 second recording (101 KB), a PDF opened through the system "Open with" list.
+* File picker: the picked document is copied into the app's `pending_files` folder the moment the picker returns, and `FileSelected` carries `{id, path, filename, mimeType, size}` (the real type). If the page was not there to receive it, `DeviceUtils::filePending()` lists it (`POST /device/file/pending`) and `fileAck($id)` (`/device/file/ack`) deletes the copy once the app has stored its own; copies nobody confirms go after 48 hours.
+
+Tested on an Android 16 emulator and an Infinix (Android 10): permission dialog, a 12 second recording (101 KB), a PDF opened through the system "Open with" list.
 
 ## Requirements
 

@@ -328,4 +328,15 @@ class DeviceUtilsController extends Controller
             default => abort(404),
         });
     }
+
+    /** Files picked with the file picker that were never acknowledged (the app was killed while the picker was open), and their acknowledgement. */
+    public function filePending(): JsonResponse
+    {
+        return function_exists('nativephp_call') ? response()->json(DeviceUtils::filePending()) : response()->json(['items' => []]);
+    }
+
+    public function fileAck(Request $request): JsonResponse
+    {
+        return function_exists('nativephp_call') ? response()->json(DeviceUtils::fileAck($request->string('id')->toString())) : response()->json(['removed' => false]);
+    }
 }

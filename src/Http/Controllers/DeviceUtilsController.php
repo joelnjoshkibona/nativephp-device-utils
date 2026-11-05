@@ -299,6 +299,18 @@ class DeviceUtilsController extends Controller
     }
 
     /**
+     * How much of the screen the on-screen keyboard covers: {visible, height} (dp = CSS px). See DeviceUtils::getKeyboard().
+     */
+    public function keyboard(): JsonResponse
+    {
+        if (! function_exists('nativephp_call')) {
+            return response()->json(['visible' => false, 'height' => 0], 503);
+        }
+
+        return response()->json(DeviceUtils::getKeyboard());
+    }
+
+    /**
      * Take over Android's Back button for the page, or give it back. See DeviceUtils::setBackIntercept().
      */
     public function backIntercept(Request $request): JsonResponse

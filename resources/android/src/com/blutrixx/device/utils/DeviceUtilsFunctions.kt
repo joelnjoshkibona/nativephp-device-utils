@@ -74,6 +74,26 @@ object DeviceUtilsFunctions {
     }
 
     /**
+     * How much of the screen the on-screen keyboard covers right now, in dp (= CSS px).
+     * - visible: the keyboard is up
+     * - height: from the bottom edge of the screen up to the top of the keyboard (the part of the page it hides)
+     * The shell draws edge to edge and some phones (Android 10) neither resize the web view nor shrink the visual viewport when the keyboard
+     * opens, so the page cannot learn this itself. Ask after the shell's `keyboard-visible` class appears; the value can lag it by a frame.
+     */
+    class GetKeyboard(private val activity: FragmentActivity) : BridgeFunction {
+        override fun execute(parameters: Map<String, Any>): Map<String, Any> {
+            val density = activity.resources.displayMetrics.density
+            val windowInsets = ViewCompat.getRootWindowInsets(activity.window.decorView)
+                ?: return BridgeResponse.success(mapOf("visible" to false, "height" to 0))
+            val visible = windowInsets.isVisible(WindowInsetsCompat.Type.ime())
+            val px = if (visible) windowInsets.getInsets(WindowInsetsCompat.Type.ime()).bottom else 0
+            val dp = Math.round(px / density)
+            Log.d(TAG, "GetKeyboard: visible=$visible, height=${dp}dp")
+            return BridgeResponse.success(mapOf("visible" to visible, "height" to dp))
+        }
+    }
+
+    /**
      * Launch the Android Storage Access Framework file picker.
      * Returns immediately with {launched: true}.
      * The result is delivered asynchronously via:

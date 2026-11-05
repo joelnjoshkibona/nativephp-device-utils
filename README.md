@@ -31,6 +31,10 @@ Tested on a Telpo M1K (Android 12): gallery opened, app process killed with the 
 
 Tested on an Android 16 emulator and an Infinix (Android 10): permission dialog, a 12 second recording (101 KB), a PDF opened through the system "Open with" list.
 
+## The on-screen keyboard (unreleased, after v1.5.0)
+
+On Android 10 the keyboard opens on top of the web view without resizing it, so it hides the lower part of a sheet or a form and the field you are typing in. `DeviceUtils::getKeyboard()` (`POST /device/keyboard`) says how much of the screen it covers, `{visible, height}` in dp. `useKeyboard()` (`resources/js/useKeyboard.ts`) uses it for you: it sets the CSS variable `--kb` on `<html>` (px, `0px` while the keyboard is down) and `--kb-vh` (the height left above it), calls you back on every change, and scrolls the field being typed in to the middle of the visible part. Use the variable: `.sheet { bottom: var(--kb, 0px) }`, `.page { padding-bottom: var(--kb, 0px) }`. Where Android cannot answer it falls back to an estimate and says so (`exact: false`).
+
 ## Requirements
 
 - PHP ^8.1
@@ -124,6 +128,7 @@ For `requestPermissions` specifically: generate a `crypto.randomUUID()` client-s
 | Method | Sync? | Returns | Notes |
 |---|---|---|---|
 | `getInsets()` | Sync | `array` (status bar / nav bar heights in dp) | |
+| `getKeyboard()` | Sync | `{visible, height}` (dp) | How much of the screen the on-screen keyboard covers; see `useKeyboard` below |
 | `pickFile(string $mimeType = 'application/pdf')` | **Async** | `{launched: true}` | Fires `FileSelected` or `FilePickCancelled` |
 | `copyToStorage(string $uri, string $filename, string $subfolder = 'books')` | Sync | `{path, filename, size}` | Copies a SAF content URI into app-private storage |
 | `requestPermissions(array $permissions, ?string $id = null)` | **Async** | `{launched: true}` | Fires `PermissionsResult`, correlated by `$id` |

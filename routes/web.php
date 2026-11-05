@@ -22,5 +22,6 @@ Route::middleware('web')->group(function () {
     Route::post('/device/file/pending', [DeviceUtilsController::class, 'filePending']);
     Route::post('/device/file/ack', [DeviceUtilsController::class, 'fileAck']);
     Route::post('/device/voice/{action}', [DeviceUtilsController::class, 'voice'])->whereIn('action', ['start', 'stop', 'cancel', 'level']);
+    Route::post('/device/keyboard', [DeviceUtilsController::class, 'keyboard']);
     Route::post('/device/back-intercept', [DeviceUtilsController::class, 'backIntercept']);
 });

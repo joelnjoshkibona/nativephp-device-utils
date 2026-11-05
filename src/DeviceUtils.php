@@ -16,6 +16,18 @@ class DeviceUtils
     }
 
     /**
+     * How much of the screen the on-screen keyboard covers, so a sheet or a form can keep above it.
+     *
+     * @return array{visible?: bool, height?: int} height in dp (CSS px), from the bottom of the screen up to the top of the keyboard
+     */
+    public function getKeyboard(): array
+    {
+        $result = nativephp_call('DeviceUtils.GetKeyboard', '{}');
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
+
+    /**
      * Launch the system file picker.
      * Returns {launched: true} immediately.
      * Listen for FileSelected or FilePickCancelled events for the result.

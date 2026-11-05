@@ -10,6 +10,14 @@
             "description": "Get device system bar insets (status bar, navigation bar heights in dp)"
         },
         {
+            "name": "DeviceUtils.GetKeyboard",
+            "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.GetKeyboard",
+            "android_params": [
+                "activity"
+            ],
+            "description": "How much of the screen the on-screen keyboard covers, in dp: {visible, height}"
+        },
+        {
             "name": "DeviceUtils.PickFile",
             "android": "com.blutrixx.device.utils.DeviceUtilsFunctions.PickFile",
             "android_params": [

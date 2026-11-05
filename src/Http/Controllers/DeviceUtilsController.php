@@ -2,6 +2,7 @@
 
 namespace Blutrixx\DeviceUtils\Http\Controllers;
 
+use Blutrixx\DeviceUtils\Facades\AppLog;
 use Blutrixx\DeviceUtils\Facades\DeviceUtils;
 use Blutrixx\DeviceUtils\Facades\SmartCamera;
 use finfo;
@@ -296,6 +297,55 @@ class DeviceUtilsController extends Controller
         }
 
         return response()->json(['acknowledged' => true]);
+    }
+
+    /** The app's log (see AppLog): write entries. Body: {entries: [{level, tag, message}]} or {level, tag, message}. */
+    public function logWrite(Request $request): JsonResponse
+    {
+        $entries = $request->input('entries');
+        if (! is_array($entries)) {
+            $entries = [['level' => $request->input('level', 'I'), 'tag' => $request->input('tag', 'app'), 'message' => $request->input('message', '')]];
+        }
+        AppLog::writeMany(array_map(fn ($e) => is_array($e) ? [
+            'level' => (string) ($e['level'] ?? 'I'), 'tag' => (string) ($e['tag'] ?? 'app'), 'message' => mb_substr((string) ($e['message'] ?? ''), 0, 4000),
+        ] : [], array_slice($entries, 0, 200)));
+
+        return response()->json(['written' => min(count($entries), 200)]);
+    }
+
+    /** The latest entries: {entries, total, errors, detail}. Body: limit (default 200, at most 2000), level (D, I, W, E). */
+    public function logRead(Request $request): JsonResponse
+    {
+        $level = strtoupper((string) $request->input('level', 'D'));
+
+        return response()->json(AppLog::read(max(1, min(2000, (int) $request->input('limit', 200))), in_array($level, ['D', 'I', 'W', 'E'], true) ? $level : 'D'));
+    }
+
+    public function logClear(): JsonResponse
+    {
+        AppLog::clear();
+
+        return response()->json(['cleared' => true]);
+    }
+
+    /** The crash that ended the last run, once: {crashed, at?, what?}. */
+    public function logCrash(): JsonResponse
+    {
+        return response()->json(AppLog::crash());
+    }
+
+    /** Detailed place logging on or off. Body: on. */
+    public function logDetail(Request $request): JsonResponse
+    {
+        return response()->json(['detail' => AppLog::setDetail($request->boolean('on'))]);
+    }
+
+    /** Save the log as a file in Downloads and open the share sheet. Body: share (default true), folder. */
+    public function logExport(Request $request): JsonResponse
+    {
+        $folder = $request->input('folder');
+
+        return response()->json(AppLog::export($request->boolean('share', true), is_string($folder) ? $folder : null));
     }
 
     /**

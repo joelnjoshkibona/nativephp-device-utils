@@ -31,6 +31,16 @@ Tested on a Telpo M1K (Android 12): gallery opened, app process killed with the 
 
 Tested on an Android 16 emulator and an Infinix (Android 10): permission dialog, a 12 second recording (101 KB), a PDF opened through the system "Open with" list.
 
+## Logs (v1.8.0)
+
+The app's own log, kept on the phone and exportable, so a crash or an odd behaviour can be followed up afterwards. A text file in private storage (`files/applog/app.log`, three files of 400 KB) written by native code, so it works when PHP or the web view is dead. A content provider starts it when the process starts and installs a crash handler, so crashes (also early ones) are recorded and the next start can say so.
+
+* **PHP:** `AppLog::info('places', 'tracking on')`, `warn`, `error`, `exception($e)`, `read($limit, $level)`, `clear()`, `crash()` (the crash that ended the last run, once), `setDetail(bool)` and `export($share = true, $folder = null)`. Every exception Laravel reports is also written (class, file and line, a message of at most 200 characters with any SQL removed). Without the bridge (a development server, tests) the same format is written under `storage/app/applog`.
+* **JS:** `useAppLog()` (`resources/js/useAppLog.ts`), or plain `POST /device/log`, `/device/log/read`, `/clear`, `/crash`, `/detail`, `/export`. It records JavaScript errors and unhandled rejections by itself.
+* **Export:** saves a text file in Downloads/<app name> (MediaStore, no permission) and opens Android's share sheet. Nothing leaves the phone unless the person chooses where it goes.
+* **Other plugins** can write with `AppLog.write(level, tag, message)` (a static Kotlin method; by reflection if they do not want a dependency). `AppLog.detail()` says whether the person switched on detailed place logging.
+* **Rule:** never write personal content (note text, amounts, names, PINs, coordinates). Times, counts, error codes and names of processes only.
+
 ## The on-screen keyboard (v1.7.0)
 
 On Android 10 the keyboard opens on top of the web view without resizing it, so it hides the lower part of a sheet or a form and the field you are typing in. `DeviceUtils::getKeyboard()` (`POST /device/keyboard`) says how much of the screen it covers, `{visible, height}` in dp. `useKeyboard()` (`resources/js/useKeyboard.ts`) uses it for you: it sets the CSS variable `--kb` on `<html>` (px, `0px` while the keyboard is down) and `--kb-vh` (the height left above it), calls you back on every change, and scrolls the field being typed in to the middle of the visible part. Use the variable: `.sheet { bottom: var(--kb, 0px) }`, `.page { padding-bottom: var(--kb, 0px) }`. Where Android cannot answer it falls back to an estimate and says so (`exact: false`).

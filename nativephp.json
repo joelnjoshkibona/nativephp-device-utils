@@ -160,6 +160,54 @@
                 "activity"
             ],
             "description": "Copy a file from the app's private storage into Downloads/<folder> without opening it (Android 10 or newer)"
+        },
+        {
+            "name": "AppLog.Write",
+            "android": "com.blutrixx.device.utils.AppLogFunctions.Write",
+            "android_params": [
+                "context"
+            ],
+            "description": "Write one entry (level, tag, message) or a list (entries) to the app's log file; never put personal content in a message"
+        },
+        {
+            "name": "AppLog.Read",
+            "android": "com.blutrixx.device.utils.AppLogFunctions.Read",
+            "android_params": [
+                "context"
+            ],
+            "description": "The latest log entries (limit, level): {entries, total, errors, detail}"
+        },
+        {
+            "name": "AppLog.Clear",
+            "android": "com.blutrixx.device.utils.AppLogFunctions.Clear",
+            "android_params": [
+                "context"
+            ],
+            "description": "Delete the log"
+        },
+        {
+            "name": "AppLog.Crash",
+            "android": "com.blutrixx.device.utils.AppLogFunctions.Crash",
+            "android_params": [
+                "context"
+            ],
+            "description": "The crash that ended the last run, once: {crashed, at, what}"
+        },
+        {
+            "name": "AppLog.SetDetail",
+            "android": "com.blutrixx.device.utils.AppLogFunctions.SetDetail",
+            "android_params": [
+                "context"
+            ],
+            "description": "Switch detailed place logging on or off (one line per location fix: time, provider, accuracy; never coordinates)"
+        },
+        {
+            "name": "AppLog.Export",
+            "android": "com.blutrixx.device.utils.AppLogFunctions.Export",
+            "android_params": [
+                "activity"
+            ],
+            "description": "Save the log as a text file in Downloads/<app> and, with share=true, open the share sheet for it"
         }
     ],
     "events": [
@@ -192,7 +240,14 @@
             "implementation": [
                 "com.google.mlkit:barcode-scanning:17.2.0"
             ]
-        }
+        },
+        "providers": [
+            {
+                "name": "com.blutrixx.device.utils.AppLogInit",
+                "authorities": "${applicationId}.applog",
+                "exported": false
+            }
+        ]
     },
     "ios": {
         "min_version": "18.0"

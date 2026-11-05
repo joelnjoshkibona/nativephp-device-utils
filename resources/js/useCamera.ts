@@ -48,6 +48,7 @@ function settle(run: (pending: PendingCapture) => void) {
 // `document` — this is the verified, authoritative delivery path (see
 // useScanner.ts, which documents the same mechanism).
 let listenerAttached = false
+let lastFailure: string | null = null
 function attachListener() {
     if (listenerAttached) return
     listenerAttached = true
@@ -81,8 +82,14 @@ function attachListener() {
         // failed to decode — SmartCameraFragment.kt fires the same
         // CaptureCancelled event for all of these, there is no separate
         // per-reason event.
+        // The camera was refused after it opened (switched off by the phone, a policy, in use). CaptureCancelled follows at once and
+        // rejects with this reason, so the caller can tell "closed" from "could not open" (error.reason).
+        else if (eventName.endsWith('Events\\CaptureFailed')) {
+            lastFailure = String(payload?.reason || 'camera_error')
+        }
         else if (eventName.endsWith('Events\\CaptureCancelled')) {
-            settle((pending) => pending.reject(new Error('Photo capture cancelled')))
+            const reason = lastFailure; lastFailure = null
+            settle((pending) => pending.reject(Object.assign(new Error(reason ? 'Camera could not be used: ' + reason : 'Photo capture cancelled'), reason ? { reason } : {})))
         }
     })
 }

@@ -163,7 +163,8 @@ All under `Blutrixx\DeviceUtils\Events\*`:
 | `FilePickCancelled` | `pickFile()` | — (user backed out) |
 | `PermissionsResult` | `requestPermissions()` | grant results, correlated by `id` |
 | `PhotoCaptured` | `SmartCamera::open(mode: 'photo')` | `{path, base64, width, height, size}` |
-| `CaptureCancelled` | `SmartCamera::open(...)` | — (user closed the overlay) |
+| `CaptureCancelled` | `SmartCamera::open(...)` | — (user closed the overlay, or the camera could not be used: see `CaptureFailed`) |
+| `CaptureFailed` | `SmartCamera::open(...)` | `{code, reason}` — the camera opened and Android then refused it (`camera_disabled`, `camera_in_use`, `max_cameras_in_use`, `camera_fatal`, `do_not_disturb`, `stream_config`, `bind_failed`, `camera_error`). Sent once, just before `CaptureCancelled`, so a listener that only handles `CaptureCancelled` still stops waiting. The overlay closes itself instead of staying on a black screen. |
 | `ScanResult` | `SmartCamera::open(mode: 'scan')` | `{value, format}` — `format` is one of `QR_CODE`, `EAN_13`, `EAN_8`, `UPC_A`, `UPC_E`, `CODE_128`, `CODE_39`, `DATA_MATRIX` |
 | `ScanResults` | `SmartCamera::open(mode: 'scan', multiple: true)`, once the user taps Done | `{results: [{value, format}, ...]}` |
 

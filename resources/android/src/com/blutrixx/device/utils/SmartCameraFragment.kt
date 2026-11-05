@@ -460,12 +460,56 @@ class SmartCameraFragment : Fragment() {
 
             try {
                 provider.unbindAll()
-                provider.bindToLifecycle(viewLifecycleOwner, AVAILABLE_CAMERAS, *useCases.toTypedArray())
+                val camera = provider.bindToLifecycle(viewLifecycleOwner, AVAILABLE_CAMERAS, *useCases.toTypedArray())
+                watchCamera(camera)
             } catch (e: Exception) {
                 Log.e(TAG, "Camera bind failed", e)
-                dispatchCancelled()
+                dispatchFailed(-1, "bind_failed")
             }
         }, ContextCompat.getMainExecutor(requireContext()))
+    }
+
+    /**
+     * Binding succeeds even when Android then refuses to open the camera (disabled by policy, access restricted, in use by another
+     * app, a fault); CameraX reports that afterwards through the camera state. Without this the person is left on a black screen
+     * with a shutter that does nothing. A hard error ends the capture at once; "in use" is retried by CameraX, so it only counts as
+     * failed if it is still an error after a few seconds.
+     */
+    private fun watchCamera(camera: Camera) {
+        camera.cameraInfo.cameraState.observe(viewLifecycleOwner) { state ->
+            val err = state.error ?: return@observe
+            Log.w(TAG, "Camera error: code=${err.code} type=${err.type}")
+            val soft = err.code == CameraState.ERROR_CAMERA_IN_USE || err.code == CameraState.ERROR_MAX_CAMERAS_IN_USE ||
+                err.code == CameraState.ERROR_OTHER_RECOVERABLE_ERROR
+            if (!soft || err.type == CameraState.ErrorType.CRITICAL) {
+                dispatchFailed(err.code, reasonFor(err.code))
+            } else {
+                view?.postDelayed({
+                    if (!isCameraFailed && camera.cameraInfo.cameraState.value?.error != null) dispatchFailed(err.code, reasonFor(err.code))
+                }, 8000)
+            }
+        }
+    }
+
+    private fun reasonFor(code: Int): String = when (code) {
+        CameraState.ERROR_CAMERA_DISABLED -> "camera_disabled"
+        CameraState.ERROR_CAMERA_IN_USE -> "camera_in_use"
+        CameraState.ERROR_MAX_CAMERAS_IN_USE -> "max_cameras_in_use"
+        CameraState.ERROR_CAMERA_FATAL_ERROR -> "camera_fatal"
+        CameraState.ERROR_DO_NOT_DISTURB_MODE_ENABLED -> "do_not_disturb"
+        CameraState.ERROR_STREAM_CONFIG -> "stream_config"
+        else -> "camera_error"
+    }
+
+    private var isCameraFailed = false
+
+    /** CaptureFailed says why; CaptureCancelled follows so a listener that only knows it still stops waiting. Once only. */
+    private fun dispatchFailed(code: Int, reason: String) {
+        if (isCameraFailed) return
+        isCameraFailed = true
+        Log.e(TAG, "Camera could not be used: $reason ($code)")
+        dispatch("Blutrixx\\DeviceUtils\\Events\\CaptureFailed", JSONObject().apply { put("code", code); put("reason", reason) })
+        dispatchCancelled()
     }
 
     // ─── Scan mode ───────────────────────────────────────────────────────────

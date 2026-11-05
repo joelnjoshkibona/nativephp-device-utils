@@ -95,6 +95,7 @@ function settleMulti(run: (pending: PendingMultiScan) => void) {
 // `document` — this is the verified, authoritative delivery path (see
 // useCamera.ts, which documents the same mechanism).
 let listenerAttached = false
+let lastFailure: string | null = null
 function attachListener() {
     if (listenerAttached) return
     listenerAttached = true
@@ -120,9 +121,14 @@ function attachListener() {
                 : []
             settleMulti((pending) => pending.resolve(results))
         }
+        else if (eventName.endsWith('Events\\CaptureFailed')) {
+            lastFailure = String(payload?.reason || 'camera_error')
+        }
         else if (eventName.endsWith('Events\\CaptureCancelled')) {
-            settle((pending) => pending.reject(new Error('Scan cancelled')))
-            settleMulti((pending) => pending.reject(new Error('Scan cancelled')))
+            const reason = lastFailure; lastFailure = null
+            const err = () => Object.assign(new Error(reason ? 'Camera could not be used: ' + reason : 'Scan cancelled'), reason ? { reason } : {})
+            settle((pending) => pending.reject(err()))
+            settleMulti((pending) => pending.reject(err()))
         }
     })
 }

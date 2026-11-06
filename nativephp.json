@@ -208,6 +208,14 @@
                 "activity"
             ],
             "description": "Save the log as a text file in Downloads/<app> and, with share=true, open the share sheet for it"
+        },
+        {
+            "name": "DeviceUtils.GetStatus",
+            "android": "com.blutrixx.device.utils.DeviceStatusFunctions.Get",
+            "android_params": [
+                "context"
+            ],
+            "description": "One reading of the phone's state: battery, charging, network (wifi, mobile, ethernet, none), mobile generation, signal 0 to 4, power saving, Android version, model, free storage. No wifi names or identifiers."
         }
     ],
     "events": [
@@ -224,7 +232,9 @@
         "min_version": 26,
         "permissions": [
             "android.permission.CAMERA",
-            "android.permission.RECORD_AUDIO"
+            "android.permission.RECORD_AUDIO",
+            "android.permission.ACCESS_NETWORK_STATE",
+            "android.permission.ACCESS_WIFI_STATE"
         ],
         "features": [
             {

@@ -29,5 +29,6 @@ Route::middleware('web')->group(function () {
     Route::post('/device/log/detail', [DeviceUtilsController::class, 'logDetail']);
     Route::post('/device/log/export', [DeviceUtilsController::class, 'logExport']);
     Route::post('/device/keyboard', [DeviceUtilsController::class, 'keyboard']);
+    Route::post('/device/status', [DeviceUtilsController::class, 'status']);
     Route::post('/device/back-intercept', [DeviceUtilsController::class, 'backIntercept']);
 });

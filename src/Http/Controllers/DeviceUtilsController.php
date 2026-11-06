@@ -361,6 +361,18 @@ class DeviceUtilsController extends Controller
     }
 
     /**
+     * One reading of the phone's state. See DeviceUtils::getStatus().
+     */
+    public function status(): JsonResponse
+    {
+        if (! function_exists('nativephp_call')) {
+            return response()->json([], 503);
+        }
+
+        return response()->json(DeviceUtils::getStatus());
+    }
+
+    /**
      * Take over Android's Back button for the page, or give it back. See DeviceUtils::setBackIntercept().
      */
     public function backIntercept(Request $request): JsonResponse

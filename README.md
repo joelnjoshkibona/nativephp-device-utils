@@ -41,6 +41,12 @@ The app's own log, kept on the phone and exportable, so a crash or an odd behavi
 * **Other plugins** can write with `AppLog.write(level, tag, message)` (a static Kotlin method; by reflection if they do not want a dependency). `AppLog.detail()` says whether the person switched on detailed place logging.
 * **Rule:** never write personal content (note text, amounts, names, PINs, coordinates). Times, counts, error codes and names of processes only.
 
+## Phone status (v1.9.0)
+
+`DeviceUtils::getStatus()` (`POST /device/status`) is one reading of the phone: battery percent and charging (and how: usb, ac, wireless), network (`wifi`, `mobile`, `ethernet`, `none`), mobile generation (`2G` to `5G`, left out when Android does not say: from Android 11 it needs a permission this plugin does not take), signal level 0 to 4 (the wifi joined, or the mobile radio), power saving, airplane mode, Android version and API level, model, and free and total storage. **Nothing that identifies the person or the place**: no wifi name, no phone number, no SIM or cell identifiers. A part the phone refuses is left out, never an error. Adds the permissions `ACCESS_NETWORK_STATE` and `ACCESS_WIFI_STATE` (both granted at install, no prompt).
+
+`com.blutrixx.device.utils.DeviceStatus.snapshot(context)` is the short form `{"b":85,"c":1,"n":"w","g":"4G","s":3,"p":0}` (battery, charging, network w/m/e/x, generation, signal, power saving) that another plugin can attach to its own records by reflection; `blutrixx/nativephp-geo-location` 1.2.0 attaches it to each location fix, so a reading is kept with every fix, with the app closed too.
+
 ## The on-screen keyboard (v1.7.0)
 
 On Android 10 the keyboard opens on top of the web view without resizing it, so it hides the lower part of a sheet or a form and the field you are typing in. `DeviceUtils::getKeyboard()` (`POST /device/keyboard`) says how much of the screen it covers, `{visible, height}` in dp. `useKeyboard()` (`resources/js/useKeyboard.ts`) uses it for you: it sets the CSS variable `--kb` on `<html>` (px, `0px` while the keyboard is down) and `--kb-vh` (the height left above it), calls you back on every change, and scrolls the field being typed in to the middle of the visible part. Use the variable: `.sheet { bottom: var(--kb, 0px) }`, `.page { padding-bottom: var(--kb, 0px) }`. Where Android cannot answer it falls back to an estimate and says so (`exact: false`).
@@ -138,6 +144,7 @@ For `requestPermissions` specifically: generate a `crypto.randomUUID()` client-s
 | Method | Sync? | Returns | Notes |
 |---|---|---|---|
 | `getInsets()` | Sync | `array` (status bar / nav bar heights in dp) | |
+| `getStatus()` | Sync | `{battery, charging, plug, batteryTemp, network, generation, signal, powerSave, airplane, android, sdk, model, manufacturer, storageFree, storageTotal}` | One reading of the phone's state (v1.9.0); `POST /device/status`; see Phone status below |
 | `getKeyboard()` | Sync | `{visible, height}` (dp) | How much of the screen the on-screen keyboard covers; see `useKeyboard` below |
 | `pickFile(string $mimeType = 'application/pdf')` | **Async** | `{launched: true}` | Fires `FileSelected` or `FilePickCancelled` |
 | `copyToStorage(string $uri, string $filename, string $subfolder = 'books')` | Sync | `{path, filename, size}` | Copies a SAF content URI into app-private storage |

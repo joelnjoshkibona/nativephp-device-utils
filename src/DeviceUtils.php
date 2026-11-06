@@ -28,6 +28,20 @@ class DeviceUtils
     }
 
     /**
+     * One reading of the phone's state: battery, charging, network, signal, power saving, Android version, model, free storage.
+     * No wifi names, phone numbers or SIM or cell identifiers.
+     *
+     * @return array{battery?: int, charging?: bool, plug?: string, batteryTemp?: float, network?: string, generation?: string, signal?: int, powerSave?: bool, airplane?: bool, android?: string, sdk?: int, model?: string, manufacturer?: string, storageFree?: int, storageTotal?: int}
+     *         network: wifi | mobile | ethernet | none; signal: 0 (none) to 4 (excellent), absent when unknown; generation: 2G | 3G | 4G | 5G, absent when Android does not say
+     */
+    public function getStatus(): array
+    {
+        $result = nativephp_call('DeviceUtils.GetStatus', '{}');
+
+        return $result ? (json_decode($result, true) ?? []) : [];
+    }
+
+    /**
      * Launch the system file picker.
      * Returns {launched: true} immediately.
      * Listen for FileSelected or FilePickCancelled events for the result.

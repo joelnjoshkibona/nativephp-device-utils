@@ -47,6 +47,10 @@ The app's own log, kept on the phone and exportable, so a crash or an odd behavi
 
 `com.blutrixx.device.utils.DeviceStatus.snapshot(context)` is the short form `{"b":85,"c":1,"n":"w","g":"4G","s":3,"p":0}` (battery, charging, network w/m/e/x, generation, signal, power saving) that another plugin can attach to its own records by reflection; `blutrixx/nativephp-geo-location` 1.2.0 attaches it to each location fix, so a reading is kept with every fix, with the app closed too.
 
+## Area names (v1.10.0)
+
+`DeviceUtils::geocode($lat, $lng, $lang = null)` (`POST /device/geocode`) asks Android's own Geocoder for the name of the area at a position: `street`, `area` (Android's sub-locality: a neighbourhood or ward where the data has one), `town`, `district`, `region`, `country`, `countryCode`, `feature`. Missing parts are left out; nothing found is `{found: false}`; a failure says why in `error` (`NO_GEOCODER`, `NETWORK`, `TIMEOUT`, `SERVICE`, `BAD_POSITION`). No key or account. **It needs the internet and the position leaves the phone** (Google's service on most phones), so name only what the person agreed to, and keep the answer instead of asking twice. It waits up to 10 seconds: call it from PHP, not in a loop.
+
 ## The on-screen keyboard (v1.7.0)
 
 On Android 10 the keyboard opens on top of the web view without resizing it, so it hides the lower part of a sheet or a form and the field you are typing in. `DeviceUtils::getKeyboard()` (`POST /device/keyboard`) says how much of the screen it covers, `{visible, height}` in dp. `useKeyboard()` (`resources/js/useKeyboard.ts`) uses it for you: it sets the CSS variable `--kb` on `<html>` (px, `0px` while the keyboard is down) and `--kb-vh` (the height left above it), calls you back on every change, and scrolls the field being typed in to the middle of the visible part. Use the variable: `.sheet { bottom: var(--kb, 0px) }`, `.page { padding-bottom: var(--kb, 0px) }`. Where Android cannot answer it falls back to an estimate and says so (`exact: false`).
@@ -144,6 +148,7 @@ For `requestPermissions` specifically: generate a `crypto.randomUUID()` client-s
 | Method | Sync? | Returns | Notes |
 |---|---|---|---|
 | `getInsets()` | Sync | `array` (status bar / nav bar heights in dp) | |
+| `geocode(float $lat, float $lng, ?string $lang = null)` | Sync (up to 10 s) | `{found, street?, area?, town?, district?, region?, country?, countryCode?, feature?, error?}` | The area at a position through Android's Geocoder (v1.10.0); needs the internet, the position goes to the service; `POST /device/geocode` |
 | `getStatus()` | Sync | `{battery, charging, plug, batteryTemp, network, generation, signal, powerSave, airplane, android, sdk, model, manufacturer, storageFree, storageTotal}` | One reading of the phone's state (v1.9.0); `POST /device/status`; see Phone status below |
 | `getKeyboard()` | Sync | `{visible, height}` (dp) | How much of the screen the on-screen keyboard covers; see `useKeyboard` below |
 | `pickFile(string $mimeType = 'application/pdf')` | **Async** | `{launched: true}` | Fires `FileSelected` or `FilePickCancelled` |

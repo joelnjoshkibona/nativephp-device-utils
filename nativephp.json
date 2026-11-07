@@ -216,6 +216,14 @@
                 "context"
             ],
             "description": "One reading of the phone's state: battery, charging, network (wifi, mobile, ethernet, none), mobile generation, signal 0 to 4, power saving, Android version, model, free storage. No wifi names or identifiers."
+        },
+        {
+            "name": "DeviceUtils.Geocode",
+            "android": "com.blutrixx.device.utils.GeocodeFunctions.Lookup",
+            "android_params": [
+                "context"
+            ],
+            "description": "The name of the area at a position through Android's Geocoder: street, area, town, district, region, country. Needs the internet; the position goes to the geocoding service (Google on most phones)."
         }
     ],
     "events": [

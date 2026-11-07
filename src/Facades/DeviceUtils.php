@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Facade;
 /**
  * @method static array getInsets()
  * @method static array getKeyboard()
+ * @method static array getStatus()
+ * @method static array geocode(float $lat, float $lng, ?string $lang = null)
  * @method static array pickFile(string $mimeType = 'application/pdf')
  * @method static array copyToStorage(string $uri, string $filename, string $subfolder = 'books')
  * @method static array requestPermissions(array $permissions, ?string $id = null)

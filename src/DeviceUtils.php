@@ -42,6 +42,23 @@ class DeviceUtils
     }
 
     /**
+     * The name of the area at a position (reverse geocoding) through Android's Geocoder. Needs the internet, and the position goes to the
+     * geocoding service (Google's on most phones), so call it only for positions the person agreed to have named. Blocks up to 10 seconds.
+     *
+     * @return array{found: bool, street?: string, area?: string, town?: string, district?: string, region?: string, country?: string, countryCode?: string, feature?: string, error?: string}
+     *         error: NO_GEOCODER (the phone has no geocoding service) | NETWORK (no internet or no answer) | TIMEOUT | SERVICE | BAD_POSITION | NOT_ON_DEVICE
+     */
+    public function geocode(float $lat, float $lng, ?string $lang = null): array
+    {
+        if (! function_exists('nativephp_call')) {
+            return ['found' => false, 'error' => 'NOT_ON_DEVICE'];
+        }
+        $result = nativephp_call('DeviceUtils.Geocode', json_encode(array_filter(['lat' => $lat, 'lng' => $lng, 'lang' => $lang], fn ($v) => $v !== null)));
+
+        return $result ? (json_decode($result, true) ?? ['found' => false]) : ['found' => false];
+    }
+
+    /**
      * Launch the system file picker.
      * Returns {launched: true} immediately.
      * Listen for FileSelected or FilePickCancelled events for the result.

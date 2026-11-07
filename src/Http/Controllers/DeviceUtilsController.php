@@ -373,6 +373,19 @@ class DeviceUtilsController extends Controller
     }
 
     /**
+     * The name of the area at a position. See DeviceUtils::geocode(): the position goes to the geocoding service.
+     */
+    public function geocode(Request $request): JsonResponse
+    {
+        $v = $request->validate(['lat' => 'required|numeric|between:-90,90', 'lng' => 'required|numeric|between:-180,180', 'lang' => 'nullable|string|max:10']);
+        if (! function_exists('nativephp_call')) {
+            return response()->json(['found' => false, 'error' => 'NOT_ON_DEVICE'], 503);
+        }
+
+        return response()->json(DeviceUtils::geocode((float) $v['lat'], (float) $v['lng'], $v['lang'] ?? null));
+    }
+
+    /**
      * Take over Android's Back button for the page, or give it back. See DeviceUtils::setBackIntercept().
      */
     public function backIntercept(Request $request): JsonResponse

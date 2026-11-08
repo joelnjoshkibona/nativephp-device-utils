@@ -39,8 +39,10 @@ object DeviceUtilsFunctions {
                 ))
             }
 
-            val statusBars = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
-            val navigationBars = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            // The bars' size even while they are hidden: asked while the lock screen is up (the app opened behind it), Android hides
+            // the navigation bar and reports 0, and on the Telpo M1K the tab bar then sat under the three buttons after unlocking.
+            val statusBars = windowInsets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars())
+            val navigationBars = windowInsets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.navigationBars())
 
             val statusBarDp = (statusBars.top / density).toInt()
             val navBarDp = (navigationBars.bottom / density).toInt()
@@ -53,11 +55,12 @@ object DeviceUtilsFunctions {
 
             // Where content must not go: the system bars together with any display cutout (notch, punch hole, curved
             // edges), on all four sides. A notch can be taller than the status bar, so top and bottom are not just the bars.
-            val safe = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            val safeTop = (safe.top / density).toInt()
-            val safeBottom = (safe.bottom / density).toInt()
-            val safeLeft = (safe.left / density).toInt()
-            val safeRight = (safe.right / density).toInt()
+            val bars = windowInsets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
+            val cut = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val safeTop = (maxOf(bars.top, cut.top) / density).toInt()
+            val safeBottom = (maxOf(bars.bottom, cut.bottom) / density).toInt()
+            val safeLeft = (maxOf(bars.left, cut.left) / density).toInt()
+            val safeRight = (maxOf(bars.right, cut.right) / density).toInt()
 
             Log.d(TAG, "GetInsets: statusBar=${statusBarDp}dp, navBar=${navBarDp}dp, mode=$navigationMode, safe=$safeTop/$safeRight/$safeBottom/$safeLeft dp")
 
